@@ -1,0 +1,16 @@
+[
+  {
+    "id": "e4a6ac8f-7590-4305-b2e7-ecaffb3d07bb",
+    "name": "punith",
+    "roll": "122311520111",
+    "contact": "iamkailashsingh07@gmail.com",
+    "category": "Book",
+    "desc": "edo book dorikindhi",
+    "location": "Library",
+    "date": "2026-08-17",
+    "img": "/uploads/1786943624457-laxsu1q816.jpg",
+    "approved": false,
+    "type": "lost",
+    "createdAt": 1786943624467
+  }
+]
