@@ -150,16 +150,29 @@ function bindFilters() {
   }
 }
 function loginDialog() {
-  const email = prompt("Enter your university email");
-  if (!email) return;
-  if (!isApolloEmail(email)) { showToast("Use your university email"); return; }
-  const el = document.getElementById("login_state");
-  if (el) el.textContent = email;
-  showToast("Logged in");
+  window.location.href = "login.html";
 }
 function initNav() {
   const btn = document.getElementById("login_btn");
   if (btn) btn.addEventListener("click", loginDialog);
+  
+  const el = document.getElementById("login_state");
+  if (el) {
+    try {
+      const session = JSON.parse(localStorage.getItem("apollo_session"));
+      if (session && session.email) {
+        el.textContent = session.email;
+        if (btn) btn.textContent = "Logout";
+        if (btn) {
+          btn.removeEventListener("click", loginDialog);
+          btn.addEventListener("click", () => {
+            localStorage.removeItem("apollo_session");
+            window.location.reload();
+          });
+        }
+      }
+    } catch (e) {}
+  }
 }
 async function renderAdmin() {
   const target = document.getElementById("admin_list");
@@ -199,9 +212,15 @@ async function renderAdmin() {
     btn.addEventListener("click", async ()=>{
       const id = btn.getAttribute("data-id");
       try {
+        let sessionKey = ADMIN_KEY;
+        try {
+          const session = JSON.parse(localStorage.getItem("apollo_session"));
+          if (session && session.adminKey) sessionKey = session.adminKey;
+        } catch (e) {}
+
         const res = await fetch(API_BASE + "/api/moderate/" + id, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json", "x-admin-key": ADMIN_KEY },
+          headers: { "Content-Type": "application/json", "x-admin-key": sessionKey },
           body: JSON.stringify({})
         });
         if (!res.ok) throw new Error("Fail");

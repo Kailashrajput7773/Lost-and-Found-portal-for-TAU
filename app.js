@@ -189,20 +189,26 @@ function ensureSeed() {
   }
 }
 function loginDialog() {
-  const email = prompt("Enter your university email");
-  if (!email) return;
-  if (!isApolloEmail(email)) { showToast("Use your university email"); return; }
-  writeSession({ email });
-  showToast("Logged in");
-  const el = document.getElementById("login_state");
-  if (el) el.textContent = email;
+  window.location.href = "login.html";
 }
 function initNav() {
   const btn = document.getElementById("login_btn");
   if (btn) btn.addEventListener("click", loginDialog);
   const session = readSession();
   const el = document.getElementById("login_state");
-  if (el) el.textContent = session.email || "Guest";
+  if (el && session.email) {
+    el.textContent = session.email;
+    if (btn) btn.textContent = "Logout";
+    if (btn) {
+      btn.removeEventListener("click", loginDialog);
+      btn.addEventListener("click", () => {
+        localStorage.removeItem(DB_KEYS.session);
+        window.location.reload();
+      });
+    }
+  } else if (el) {
+    el.textContent = "Guest";
+  }
 }
 function renderAdmin() {
   const target = document.getElementById("admin_list");
