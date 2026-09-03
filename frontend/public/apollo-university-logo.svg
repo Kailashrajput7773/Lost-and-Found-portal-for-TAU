@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 300" width="100%" height="100%">
+  <defs>
+    <linearGradient id="tauFlame" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E07000"/>
+      <stop offset="35%" stop-color="#FAA61A"/>
+      <stop offset="100%" stop-color="#FFD000"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Flame Swoop (Top Right, above 'ollo') -->
+  <g transform="translate(265, 0)">
+    <!-- Upper soaring flame wing -->
+    <path d="M 5 155 C 5 90, 38 30, 115 0 C 80 45, 68 95, 136 135 C 98 112, 48 132, 5 155 Z" fill="url(#tauFlame)" />
+    <!-- Lower flame wing -->
+    <path d="M 22 66 C 48 54, 92 64, 130 98 C 85 84, 55 94, 26 120 C 42 98, 46 76, 22 66 Z" fill="url(#tauFlame)" />
+  </g>
+
+  <!-- Text "The" -->
+  <text x="100" y="105" font-family="'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="42" font-weight="700" fill="#6E7277">The</text>
+
+  <!-- Text "Apollo" -->
+  <text x="0" y="205" font-family="'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="112" font-weight="800" fill="#007DA5" letter-spacing="-2">Apollo</text>
+
+  <!-- Text "University" -->
+  <text x="160" y="268" font-family="'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif" font-size="46" font-weight="700" fill="#6E7277">University</text>
+</svg>
