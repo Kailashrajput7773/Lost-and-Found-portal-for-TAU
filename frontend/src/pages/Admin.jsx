@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const Admin = () => {
+const Admin = ({ user }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const adminKey = "change-me"; // Note: For a real app, you'd retrieve this securely or use a proper auth token.
+  const adminKey = user?.adminKey || "change-me";
 
   useEffect(() => {
     fetchItems();
@@ -20,7 +20,7 @@ const Admin = () => {
       if (res.data.ok) setItems(res.data.items);
     } catch (error) {
       if (error.response?.status === 403) {
-        alert("Unauthorized! Redirecting to login...");
+        alert("Admin key required! Redirecting to login...");
         navigate('/login');
       }
       console.error(error);
@@ -36,11 +36,12 @@ const Admin = () => {
       });
       fetchItems();
     } catch (error) {
-      alert("Error updating item");
+      alert("Error updating item status");
     }
   };
 
   const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to permanently delete this listing?")) return;
     try {
       await axios.delete(`http://localhost:5000/api/admin/delete/${id}`, {
         headers: { 'x-admin-key': adminKey }
@@ -54,33 +55,85 @@ const Admin = () => {
   return (
     <section className="section">
       <div className="container">
-        <h1 className="page-title">Admin Dashboard</h1>
-        {loading ? <p>Loading...</p> : (
-          <table className="table" style={{width: '100%', marginTop: '2rem', borderCollapse: 'collapse'}}>
-            <thead>
-              <tr style={{borderBottom: '1px solid var(--border)'}}>
-                <th style={{padding: '1rem', textAlign: 'left'}}>Type</th>
-                <th style={{padding: '1rem', textAlign: 'left'}}>Name</th>
-                <th style={{padding: '1rem', textAlign: 'left'}}>Status</th>
-                <th style={{padding: '1rem', textAlign: 'left'}}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => (
-                <tr key={item._id} style={{borderBottom: '1px solid var(--border)'}}>
-                  <td style={{padding: '1rem'}}>{item.type.toUpperCase()}</td>
-                  <td style={{padding: '1rem'}}>{item.name}</td>
-                  <td style={{padding: '1rem'}}>{item.approved ? 'Approved' : 'Pending'}</td>
-                  <td style={{padding: '1rem'}}>
-                    <button className="btn" style={{marginRight: '0.5rem', padding: '0.5rem 1rem'}} onClick={() => handleModerate(item._id, !item.approved)}>
-                      {item.approved ? 'Revoke' : 'Approve'}
-                    </button>
-                    <button className="btn secondary" style={{padding: '0.5rem 1rem'}} onClick={() => handleDelete(item._id)}>Delete</button>
-                  </td>
+        <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 className="section-title">Admin Moderation Dashboard</h1>
+            <p className="section-desc">Review submitted student listings, approve public catalog entries, or delete reports</p>
+          </div>
+          <button className="btn-primary-pill" onClick={fetchItems}>
+            🔄 Refresh List
+          </button>
+        </div>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
+            Loading dashboard data...
+          </div>
+        ) : items.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)' }}>
+            No items submitted yet.
+          </div>
+        ) : (
+          <div className="admin-table-card">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Item Name</th>
+                  <th>Category</th>
+                  <th>Location</th>
+                  <th>Reported By</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.map(item => {
+                  const itemId = item._id || item.id;
+                  return (
+                    <tr key={itemId}>
+                      <td>
+                        <span className={`pill ${item.type === 'found' ? 'pill-found' : 'pill-lost'}`}>
+                          {item.type}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 700 }}>{item.name}</td>
+                      <td>{item.category}</td>
+                      <td>📍 {item.location}</td>
+                      <td>
+                        <div>{item.name} ({item.contact})</div>
+                        {item.roll && <small style={{ color: 'var(--text-muted)' }}>Roll: {item.roll}</small>}
+                      </td>
+                      <td>
+                        <span className="pill" style={{
+                          background: item.approved ? 'var(--tag-found-bg)' : 'var(--tag-lost-bg)',
+                          color: item.approved ? 'var(--tag-found-text)' : 'var(--tag-lost-text)',
+                          border: `1px solid ${item.approved ? 'var(--tag-found-border)' : 'var(--tag-lost-border)'}`
+                        }}>
+                          {item.approved ? '✅ Approved' : '⏳ Pending'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          className="btn-action-sm btn-approve"
+                          style={{ marginRight: '8px' }}
+                          onClick={() => handleModerate(itemId, !item.approved)}
+                        >
+                          {item.approved ? 'Revoke' : 'Approve'}
+                        </button>
+                        <button
+                          className="btn-action-sm btn-delete"
+                          onClick={() => handleDelete(itemId)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </section>

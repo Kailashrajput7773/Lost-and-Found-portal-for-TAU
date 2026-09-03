@@ -1,0 +1,11 @@
+{
+  "name": "lost-and-found-tau",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npm run server",
+    "dev": "node dev.js",
+    "server": "npm start --prefix backend",
+    "client": "npm run dev --prefix frontend"
+  }
+}

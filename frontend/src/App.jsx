@@ -11,13 +11,31 @@ import Login from './pages/Login';
 import './index.css';
 
 function App() {
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
-  const [user, setUser] = useState(null);
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'light';
+  });
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('apollo_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('apollo_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('apollo_user');
+    }
+  }, [user]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -29,10 +47,10 @@ function App() {
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/report-lost" element={<ReportLost />} />
-          <Route path="/report-found" element={<ReportFound />} />
+          <Route path="/report-lost" element={<ReportLost user={user} />} />
+          <Route path="/report-found" element={<ReportFound user={user} />} />
           <Route path="/listings" element={<Listings />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
         </Routes>
       </main>

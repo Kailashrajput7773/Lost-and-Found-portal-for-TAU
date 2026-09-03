@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="apolloEmblemGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE033"/>
+      <stop offset="30%" stop-color="#FFB300"/>
+      <stop offset="70%" stop-color="#FF6A00"/>
+      <stop offset="100%" stop-color="#E53900"/>
+    </linearGradient>
+    <filter id="apolloGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#FF6A00" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#apolloGlow)">
+    <!-- Primary Outer Soaring Flame -->
+    <path d="M 12 155 C 10 90, 42 32, 118 4 C 84 50, 68 100, 132 138 C 100 118, 52 136, 12 155 Z" fill="url(#apolloEmblemGrad)" />
+    <!-- Secondary Inner Swoop Flame -->
+    <path d="M 28 68 C 54 57, 96 68, 128 102 C 84 88, 56 98, 30 124 C 44 102, 48 78, 28 68 Z" fill="url(#apolloEmblemGrad)" opacity="0.95" />
+  </g>
+</svg>
