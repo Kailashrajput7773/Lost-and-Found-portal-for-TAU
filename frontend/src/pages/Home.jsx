@@ -1,67 +1,223 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
+const SLIDES = [
+  {
+    badge: '🌿 Campus Safe Return Network',
+    hasPulse: true,
+    title: 'Lost Something? Let Apollo Community Help You Find It',
+    desc: 'Report lost belongings, browse found items, and safely reconnect with fellow students. Quick, verified, and campus-friendly.',
+    actions: (
+      <>
+        <Link to="/report-lost" className="btn-primary-pill">
+          Report Lost Item
+        </Link>
+        <Link to="/report-found" className="btn-secondary-pill">
+          Found an Item?
+        </Link>
+        <Link to="/listings" className="btn-subtle-pill">
+          Browse All Items 🔍
+        </Link>
+      </>
+    ),
+    cards: [
+      { icon: '📱', title: 'Electronics', subtitle: 'Phones, Laptops, Earbuds' },
+      { icon: '💳', title: 'IDs & Wallets', subtitle: 'Campus IDs, Cards, Cash' },
+      { icon: '📚', title: 'Books & Notes', subtitle: 'Textbooks, Notebooks' },
+      { icon: '🔑', title: 'Keys & Badges', subtitle: 'Hostel keys, Lockers' },
+    ],
+  },
+  {
+    badge: '🤝 Safe & Honest Handover',
+    hasPulse: true,
+    title: 'Found an Item on Campus? Help Reconnect It Safely',
+    desc: 'Turn in found student IDs, keys, electronics, or notebooks. Safe, verified return coordinated at the TAU Library Desk.',
+    actions: (
+      <>
+        <Link to="/report-found" className="btn-primary-pill">
+          Found an Item?
+        </Link>
+        <Link to="/report-lost" className="btn-secondary-pill">
+          Report Lost Item
+        </Link>
+        <Link to="/listings" className="btn-subtle-pill">
+          Browse All Items 🔍
+        </Link>
+      </>
+    ),
+    cards: [
+      { icon: '🪪', title: 'Student IDs', subtitle: 'TAU IDs, RFID, Badges' },
+      { icon: '💻', title: 'Laptops & Tech', subtitle: 'MacBooks, Chargers, iPads' },
+      { icon: '🎒', title: 'Bags & Folders', subtitle: 'Backpacks, Lab Coats, Files' },
+      { icon: '🎧', title: 'Audio & Gadgets', subtitle: 'AirPods, Smartwatches, Tags' },
+    ],
+  },
+  {
+    badge: '🔴 Live Campus Recovery Feed',
+    hasPulse: true,
+    title: 'Real-Time Item Tracking Across All Apollo Zones',
+    desc: 'Instant updates and campus moderation across Library, Cafeteria, Sports Complex, and Academic Blocks. Over 98% reunited!',
+    actions: (
+      <>
+        <Link to="/listings" className="btn-primary-pill">
+          Browse All Items 🔍
+        </Link>
+        <Link to="/report-lost" className="btn-secondary-pill">
+          Report Lost Item
+        </Link>
+        <Link to="/report-found" className="btn-subtle-pill">
+          Found an Item?
+        </Link>
+      </>
+    ),
+    cards: [
+      { icon: '🏛️', title: 'Central Library', subtitle: 'Primary recovery desk' },
+      { icon: '🏫', title: 'Academic Blocks', subtitle: 'Lecture halls & labs' },
+      { icon: '☕', title: 'Campus Cafeteria', subtitle: 'Dining halls & food court' },
+      { icon: '⚽', title: 'Sports Complex', subtitle: 'Ground & athletic arena' },
+    ],
+  },
+  {
+    badge: '🛡️ Verified TAU Student Moderation',
+    hasPulse: true,
+    title: 'Confidential Handover & Safe Campus Return',
+    desc: 'Student contact information remains shielded until claims are verified by campus administrators. 100% spam-free and secure.',
+    actions: (
+      <>
+        <Link to="/report-lost" className="btn-primary-pill">
+          Report Lost Item
+        </Link>
+        <Link to="/report-found" className="btn-secondary-pill">
+          Found an Item?
+        </Link>
+        <Link to="/listings" className="btn-subtle-pill">
+          Browse All Items 🔍
+        </Link>
+      </>
+    ),
+    cards: [
+      { icon: '🔒', title: 'Privacy Shield', subtitle: 'Contact masked safely' },
+      { icon: '⏱️', title: '24h Recovery', subtitle: 'Fast student turnaround' },
+      { icon: '📋', title: 'Verified Posts', subtitle: 'Admin vetted items only' },
+      { icon: '🤝', title: 'Designated Spots', subtitle: 'Central desk handovers' },
+    ],
+  },
+];
+
 const Home = () => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
+  // Live slide show automatically transitions every 3 seconds
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);
+  };
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const diff = touchStartX.current - touchEndX.current;
+    if (diff > 50) {
+      nextSlide();
+    } else if (diff < -50) {
+      prevSlide();
+    }
+  };
+
   return (
     <>
-      {/* Hero Section matching the Shopcart apricot & forest green aesthetic */}
+      {/* Hero Section with 3-second Auto-Sliding Live Show */}
       <section className="hero">
         <div className="container">
-          <div className="hero-banner">
-            <div>
-              <div className="hero-badge">
-                🌿 Campus Safe Return Network
-              </div>
-              <h1 className="hero-title">
-                Lost Something? Let Apollo Community Help You Find It
-              </h1>
-              <p className="hero-desc">
-                Report lost belongings, browse found items, and safely reconnect with fellow students. Quick, verified, and campus-friendly.
-              </p>
-              <div className="hero-actions">
-                <Link to="/report-lost" className="btn-primary-pill">
-                  Report Lost Item
-                </Link>
-                <Link to="/report-found" className="btn-secondary-pill">
-                  Found an Item?
-                </Link>
-                <Link to="/listings" className="btn-subtle-pill">
-                  Browse All Items 🔍
-                </Link>
-              </div>
+          <div
+            className="hero-slider-container"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div
+              className="hero-slider-track"
+              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+            >
+              {SLIDES.map((slide, sIdx) => (
+                <div className="hero-slide" key={sIdx}>
+                  <div className="hero-banner">
+                    <div>
+                      <div className="hero-badge">
+                        {slide.hasPulse && <span className="hero-live-indicator" />}
+                        {slide.badge}
+                      </div>
+                      <h1 className="hero-title">{slide.title}</h1>
+                      <p className="hero-desc">{slide.desc}</p>
+                      <div className="hero-actions">{slide.actions}</div>
+                    </div>
+
+                    <div className="hero-visual">
+                      <div className="hero-mini-cards">
+                        {slide.cards.map((card, cIdx) => (
+                          <div className="hero-mini-card" key={cIdx}>
+                            <div className="hero-mini-icon">{card.icon}</div>
+                            <div>
+                              <div className="hero-mini-title">{card.title}</div>
+                              <div className="hero-mini-subtitle">{card.subtitle}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <div className="hero-visual">
-              <div className="hero-mini-cards">
-                <div className="hero-mini-card">
-                  <div className="hero-mini-icon">📱</div>
-                  <div>
-                    <div className="hero-mini-title">Electronics</div>
-                    <div className="hero-mini-subtitle">Phones, Laptops, Earbuds</div>
-                  </div>
-                </div>
-                <div className="hero-mini-card">
-                  <div className="hero-mini-icon">💳</div>
-                  <div>
-                    <div className="hero-mini-title">IDs & Wallets</div>
-                    <div className="hero-mini-subtitle">Campus IDs, Cards, Cash</div>
-                  </div>
-                </div>
-                <div className="hero-mini-card">
-                  <div className="hero-mini-icon">📚</div>
-                  <div>
-                    <div className="hero-mini-title">Books & Notes</div>
-                    <div className="hero-mini-subtitle">Textbooks, Notebooks</div>
-                  </div>
-                </div>
-                <div className="hero-mini-card">
-                  <div className="hero-mini-icon">🔑</div>
-                  <div>
-                    <div className="hero-mini-title">Keys & Badges</div>
-                    <div className="hero-mini-subtitle">Hostel keys, Lockers</div>
-                  </div>
-                </div>
-              </div>
+            {/* Slider Navigation Arrows */}
+            <button
+              className="hero-slider-arrow hero-slider-prev"
+              onClick={prevSlide}
+              aria-label="Previous Slide"
+            >
+              ‹
+            </button>
+            <button
+              className="hero-slider-arrow hero-slider-next"
+              onClick={nextSlide}
+              aria-label="Next Slide"
+            >
+              ›
+            </button>
+
+            {/* Slider Dots */}
+            <div className="hero-slider-dots">
+              {SLIDES.map((_, idx) => (
+                <button
+                  key={idx}
+                  className={`hero-slider-dot ${idx === currentSlide ? 'active' : ''}`}
+                  onClick={() => setCurrentSlide(idx)}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
             </div>
           </div>
 

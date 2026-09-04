@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import CampusMap from '../components/CampusMap';
+import ClaimModal from '../components/ClaimModal';
+import PrintPosterModal from '../components/PrintPosterModal';
+import AudioPlayer from '../components/AudioPlayer';
 
-const Listings = () => {
+const Listings = ({ user }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeType, setActiveType] = useState('');
   const [savedIds, setSavedIds] = useState([]);
   const [filters, setFilters] = useState({ q: '', category: '', location: '', date: '' });
   const [revealedContactId, setRevealedContactId] = useState(null);
+
+  // New features state
+  const [showMap, setShowMap] = useState(false);
+  const [claimModalItem, setClaimModalItem] = useState(null);
+  const [posterModalItem, setPosterModalItem] = useState(null);
 
   const fetchItems = async () => {
     setLoading(true);
@@ -41,12 +50,33 @@ const Listings = () => {
   return (
     <section className="section">
       <div className="container">
-        <div className="section-header">
-          <h1 className="section-title">Campus Items Catalog</h1>
-          <p className="section-desc">Browse reported lost and found belongings across Apollo University</p>
+        <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h1 className="section-title">Campus Items Catalog</h1>
+            <p className="section-desc">Browse reported lost and found belongings across Apollo University</p>
+          </div>
+
+          <button
+            className={`btn-subtle-pill ${showMap ? 'active-map-toggle' : ''}`}
+            onClick={() => setShowMap(!showMap)}
+            style={{ fontWeight: 700 }}
+          >
+            {showMap ? '✕ Hide Campus Map' : '🗺️ Interactive Campus Map & Heatmap'}
+          </button>
         </div>
 
-        {/* Filter Pills Bar matching Shopcart filter buttons */}
+        {/* Interactive Campus Zone Heatmap */}
+        {showMap && (
+          <div style={{ marginBottom: '24px' }}>
+            <CampusMap
+              items={items}
+              selectedLocation={filters.location}
+              onSelectLocation={(loc) => setFilters(prev => ({ ...prev, location: loc }))}
+            />
+          </div>
+        )}
+
+        {/* Filter Pills Bar */}
         <div className="filters-bar">
           <div className="filter-search-wrap">
             <span className="filter-search-icon">🔍</span>
@@ -101,12 +131,12 @@ const Listings = () => {
             onChange={handleFilterChange}
           >
             <option value="">Zone: All Locations</option>
-            <option value="Library">Library</option>
+            <option value="Library">Central Library</option>
+            <option value="Academic Block">Academic Block</option>
             <option value="Cafeteria">Cafeteria</option>
             <option value="Hostel">Hostel</option>
             <option value="Ground">Sports Ground</option>
-            <option value="Classroom Block A">Classroom Block A</option>
-            <option value="Classroom Block B">Classroom Block B</option>
+            <option value="Main Gate">Security Gate 1</option>
             <option value="Other">Other Zone</option>
           </select>
 
@@ -121,7 +151,7 @@ const Listings = () => {
           />
         </div>
 
-        {/* Cards Grid matching Shopcart Product Cards */}
+        {/* Cards Grid */}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔄</div>
@@ -139,10 +169,12 @@ const Listings = () => {
               const itemId = item._id || item.id;
               const isSaved = savedIds.includes(itemId);
               const isContactRevealed = revealedContactId === itemId;
+              const isReunited = item.status === 'reunited';
+              const isClaimPending = item.status === 'claim_pending';
 
               return (
                 <div className="card" key={itemId}>
-                  {/* Floating Bookmark/Heart Button */}
+                  {/* Floating Bookmark Button */}
                   <button
                     className="card-fav-btn"
                     onClick={() => toggleSave(itemId)}
@@ -152,7 +184,7 @@ const Listings = () => {
                     {isSaved ? '❤️' : '🤍'}
                   </button>
 
-                  {/* Card Image Area with light grey background */}
+                  {/* Card Image Area */}
                   <div
                     className="card-img"
                     style={{
@@ -168,6 +200,23 @@ const Listings = () => {
                          item.type === 'lost' ? '❓' : '💡'}
                       </span>
                     )}
+
+                    {/* Status Badge overlay */}
+                    <div style={{ position: 'absolute', top: '12px', left: '12px', display: 'flex', gap: '6px' }}>
+                      <span className={`pill ${item.type === 'found' ? 'pill-found' : 'pill-lost'}`}>
+                        {item.type === 'found' ? 'Found' : 'Lost'}
+                      </span>
+                      {isReunited && (
+                        <span className="pill pill-found" style={{ background: '#dcfce7', color: '#15803d' }}>
+                          🎉 Reunited
+                        </span>
+                      )}
+                      {isClaimPending && !isReunited && (
+                        <span className="pill pill-lost" style={{ background: '#fef3c7', color: '#b45309' }}>
+                          ⏳ Claim Pending
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Card Content Body */}
@@ -179,8 +228,8 @@ const Listings = () => {
                     <p className="card-desc-snippet">{item.desc}</p>
 
                     <div className="card-meta-row">
-                      <span className={`pill ${item.type === 'found' ? 'pill-found' : 'pill-lost'}`}>
-                        {item.type === 'found' ? 'Found' : 'Lost'}
+                      <span className="card-meta-item">
+                        📁 {item.category}
                       </span>
                       <span className="card-meta-item">
                         📍 {item.location}
@@ -190,26 +239,75 @@ const Listings = () => {
                       </span>
                     </div>
 
+                    {item.audio && (
+                      <div style={{ marginTop: '10px' }}>
+                        <AudioPlayer audioSrc={item.audio} title="Reporter Voice Note" />
+                      </div>
+                    )}
+
                     {isContactRevealed && (
                       <div className="contact-reveal-box">
                         <div>👤 Reporter: {item.name}</div>
                         <div>📞 Contact: {item.contact}</div>
                         {item.roll && <div>🎓 Roll: {item.roll}</div>}
+                        {item.handoverStation && <div>🏛️ Drop Station: {item.handoverStation}</div>}
                       </div>
                     )}
 
-                    {/* Pill Action Button matching 'Add to Cart' */}
-                    <button
-                      className={`card-action-btn ${isContactRevealed ? 'filled' : ''}`}
-                      onClick={() => setRevealedContactId(isContactRevealed ? null : itemId)}
-                    >
-                      {isContactRevealed ? 'Hide Details' : item.type === 'lost' ? 'I Found This' : 'Claim Item'}
-                    </button>
+                    {/* Card Actions Footer */}
+                    <div className="card-actions-grid" style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '8px', marginTop: '12px' }}>
+                      <button
+                        className="btn-primary-pill"
+                        style={{ fontSize: '13px', padding: '8px 14px' }}
+                        onClick={() => setClaimModalItem(item)}
+                        disabled={isReunited}
+                      >
+                        {isReunited ? 'Reunited 🎉' : 'Claim Item 🤝'}
+                      </button>
+
+                      <button
+                        className="btn-subtle-pill"
+                        style={{ fontSize: '13px', padding: '8px 10px' }}
+                        title="Print A4 Notice Poster with QR Code"
+                        onClick={() => setPosterModalItem(item)}
+                      >
+                        🖨️
+                      </button>
+
+                      <button
+                        className={`btn-secondary-pill ${isContactRevealed ? 'active' : ''}`}
+                        style={{ fontSize: '13px', padding: '8px 12px' }}
+                        title="Reveal contact details"
+                        onClick={() => setRevealedContactId(isContactRevealed ? null : itemId)}
+                      >
+                        📞
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
+        )}
+
+        {/* Claim Verification Modal */}
+        {claimModalItem && (
+          <ClaimModal
+            item={claimModalItem}
+            user={user}
+            onClose={() => setClaimModalItem(null)}
+            onSuccess={() => {
+              fetchItems();
+            }}
+          />
+        )}
+
+        {/* Printable Notice Poster Modal */}
+        {posterModalItem && (
+          <PrintPosterModal
+            item={posterModalItem}
+            onClose={() => setPosterModalItem(null)}
+          />
         )}
       </div>
     </section>

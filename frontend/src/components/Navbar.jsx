@@ -56,6 +56,11 @@ const Navbar = ({ theme, toggleTheme, user, setUser }) => {
             <Link className={`nav-link ${location.pathname === '/report-found' ? 'active' : ''}`} to="/report-found">
               Report Found
             </Link>
+            {user && (
+              <Link className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`} to="/dashboard">
+                My Activity 👤
+              </Link>
+            )}
             <Link className={`nav-link ${location.pathname === '/admin' ? 'active' : ''}`} to="/admin">
               Admin
             </Link>

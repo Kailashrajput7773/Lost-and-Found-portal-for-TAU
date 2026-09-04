@@ -8,6 +8,7 @@ import ReportFound from './pages/ReportFound';
 import Listings from './pages/Listings';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
 import './index.css';
 
 function App() {
@@ -49,7 +50,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/report-lost" element={<ReportLost user={user} />} />
           <Route path="/report-found" element={<ReportFound user={user} />} />
-          <Route path="/listings" element={<Listings />} />
+          <Route path="/listings" element={<Listings user={user} />} />
+          <Route path="/dashboard" element={<Dashboard user={user} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
         </Routes>

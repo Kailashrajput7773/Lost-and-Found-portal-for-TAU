@@ -370,6 +370,11 @@ const Login = ({ setUser }) => {
                       value={regData.roll}
                       onChange={e => setRegData({ ...regData, roll: e.target.value })}
                     />
+                    {regData.role === 'student' && regData.roll && /^\d{10,12}$/.test(regData.roll.trim()) && (
+                      <div style={{ fontSize: '11.5px', color: 'var(--brand-emerald)', marginTop: '4px', fontWeight: 600 }}>
+                        ✓ Valid Apollo University Roll Number
+                      </div>
+                    )}
                   </div>
 
                   <div className="field">
@@ -395,6 +400,11 @@ const Login = ({ setUser }) => {
                     value={regData.email}
                     onChange={e => setRegData({ ...regData, email: e.target.value })}
                   />
+                  {(regData.email.toLowerCase().includes('@apollo.edu.in') || regData.email.toLowerCase().includes('@tau.edu.in')) && (
+                    <div style={{ fontSize: '12px', color: 'var(--brand-emerald)', marginTop: '5px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>🎓</span> Verified The Apollo University Institutional Domain
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
