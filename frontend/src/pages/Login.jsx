@@ -33,13 +33,41 @@ const Login = ({ setUser }) => {
 
   const navigate = useNavigate();
 
+  const DEFAULT_ACCOUNTS = [
+    {
+      fullName: "Item Founder",
+      username: "founder",
+      roll: "122311520136",
+      email: "founder@apollo.edu.in",
+      phone: "9078563412",
+      role: "student",
+      password: "founder123"
+    },
+    {
+      fullName: "Item Claimer",
+      username: "claimer",
+      roll: "12223222123",
+      email: "claimer@apollo.edu.in",
+      phone: "9898988989",
+      role: "student",
+      password: "claimer123"
+    }
+  ];
+
   // Helper to get local accounts
   const getStoredAccounts = () => {
     try {
       const accs = localStorage.getItem('apollo_accounts');
-      return accs ? JSON.parse(accs) : [];
+      const custom = accs ? JSON.parse(accs) : [];
+      const combined = [...DEFAULT_ACCOUNTS];
+      custom.forEach(c => {
+        if (!combined.some(a => a.username.toLowerCase() === c.username.toLowerCase() || (c.email && a.email.toLowerCase() === c.email.toLowerCase()))) {
+          combined.push(c);
+        }
+      });
+      return combined;
     } catch {
-      return [];
+      return DEFAULT_ACCOUNTS;
     }
   };
 
@@ -95,19 +123,8 @@ const Login = ({ setUser }) => {
       }
     }
 
-    // If no existing saved account matches, allow login with provided credentials
-    const isMod = pass === 'change-me' || input.toLowerCase().includes('admin');
-    const newUser = {
-      username: input,
-      role: isMod ? 'moderator' : 'student',
-      adminKey: isMod ? pass : undefined
-    };
-    setUser(newUser);
-    if (isMod) {
-      navigate('/admin');
-    } else {
-      navigate('/listings');
-    }
+    // If no existing account matches, reject invalid login
+    setErrorMsg('Account not found. Only the administrator account is active. Please use the Admin login or create a new student account.');
   };
 
   const handleRegister = (e) => {
@@ -236,6 +253,34 @@ const Login = ({ setUser }) => {
                 />
                 <h1 className="page-title" style={{ fontSize: '26px' }}>Sign In to Portal</h1>
                 <p className="section-desc">Access student reports, listings, or admin moderation desk</p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '18px', background: 'var(--bg-subtle, #f8fafc)', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', width: '100%', fontWeight: 600 }}>Quick Login Shortcuts (Click to fill):</span>
+                <button
+                  type="button"
+                  className="btn-subtle-pill"
+                  style={{ fontSize: '12px', padding: '4px 10px' }}
+                  onClick={() => { setUsername('founder'); setPassword('founder123'); setErrorMsg(''); }}
+                >
+                  📦 Item Founder
+                </button>
+                <button
+                  type="button"
+                  className="btn-subtle-pill"
+                  style={{ fontSize: '12px', padding: '4px 10px' }}
+                  onClick={() => { setUsername('claimer'); setPassword('claimer123'); setErrorMsg(''); }}
+                >
+                  🤝 Item Claimer
+                </button>
+                <button
+                  type="button"
+                  className="btn-subtle-pill"
+                  style={{ fontSize: '12px', padding: '4px 10px' }}
+                  onClick={() => { setUsername('admin'); setPassword('change-me'); setErrorMsg(''); }}
+                >
+                  🔐 Admin
+                </button>
               </div>
 
               <form onSubmit={handleLogin} className="form-grid">

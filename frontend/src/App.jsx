@@ -24,7 +24,25 @@ function App() {
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('apollo_user');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      if (!parsed) return null;
+
+      const uName = (parsed.username || '').toLowerCase();
+      if (uName === 'founder' || uName === 'item founder') {
+        parsed.username = parsed.username || 'Item Founder';
+        parsed.roll = parsed.roll || '122311520136';
+        parsed.email = parsed.email || 'founder@apollo.edu.in';
+        parsed.phone = parsed.phone || '9078563412';
+        parsed.role = parsed.role || 'student';
+      } else if (uName === 'claimer' || uName === 'item claimer') {
+        parsed.username = parsed.username || 'Item Claimer';
+        parsed.roll = parsed.roll || '12223222123';
+        parsed.email = parsed.email || 'claimer@apollo.edu.in';
+        parsed.phone = parsed.phone || '9898988989';
+        parsed.role = parsed.role || 'student';
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -37,6 +55,7 @@ function App() {
       localStorage.removeItem('apollo_user');
     }
   }, [user]);
+
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');

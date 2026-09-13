@@ -42,7 +42,7 @@ const ClaimModal = ({ item, user, onClose, onSuccess }) => {
         });
       }
 
-      const res = await axios.post(`http://localhost:5000/api/items/${item._id || item.id}/claim`, {
+      const res = await axios.post(`http://localhost:5001/api/items/${item._id || item.id}/claim`, {
         claimantName,
         claimantRoll,
         claimantEmail: user?.email || '',
@@ -84,7 +84,7 @@ const ClaimModal = ({ item, user, onClose, onSuccess }) => {
 
             <div className="claim-item-preview">
               {item.img ? (
-                <img src={`http://localhost:5000${item.img}`} alt={item.name} className="claim-preview-img" />
+                <img src={`http://localhost:5001${item.img}`} alt={item.name} className="claim-preview-img" />
               ) : (
                 <div className="claim-preview-fallback">📦</div>
               )}

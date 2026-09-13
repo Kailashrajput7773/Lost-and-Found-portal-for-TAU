@@ -8,12 +8,12 @@ const AudioPlayer = ({ audioSrc, title = 'Voice Message', initialDuration = 0 })
   );
   const audioRef = useRef(null);
 
-  if (!audioSrc) return null;
-
   // Resolve absolute or relative URL
-  const resolvedSrc = audioSrc.startsWith('http') || audioSrc.startsWith('data:') || audioSrc.startsWith('blob:')
-    ? audioSrc
-    : `http://localhost:5000${audioSrc}`;
+  const resolvedSrc = audioSrc
+    ? (audioSrc.startsWith('http') || audioSrc.startsWith('data:') || audioSrc.startsWith('blob:')
+        ? audioSrc
+        : `http://localhost:5001${audioSrc}`)
+    : '';
 
   // Update duration if initialDuration changes from parent
   useEffect(() => {
@@ -24,6 +24,10 @@ const AudioPlayer = ({ audioSrc, title = 'Voice Message', initialDuration = 0 })
 
   // Decode exact duration from Web Audio API for blobs or data URLs
   useEffect(() => {
+    if (!resolvedSrc || (!resolvedSrc.startsWith('blob:') && !resolvedSrc.startsWith('data:'))) {
+      return;
+    }
+
     let isMounted = true;
 
     const calculateAudioBufferDuration = async () => {
@@ -45,9 +49,7 @@ const AudioPlayer = ({ audioSrc, title = 'Voice Message', initialDuration = 0 })
       }
     };
 
-    if (resolvedSrc && (resolvedSrc.startsWith('blob:') || resolvedSrc.startsWith('data:'))) {
-      calculateAudioBufferDuration();
-    }
+    calculateAudioBufferDuration();
 
     return () => {
       isMounted = false;
@@ -131,6 +133,8 @@ const AudioPlayer = ({ audioSrc, title = 'Voice Message', initialDuration = 0 })
   const progress = effectiveDuration > 0 
     ? Math.min(100, (currentTime / effectiveDuration) * 100) 
     : 0;
+
+  if (!audioSrc) return null;
 
   return (
     <div className="audio-player-widget">

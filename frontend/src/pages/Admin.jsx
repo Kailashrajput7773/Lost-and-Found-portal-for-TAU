@@ -14,7 +14,7 @@ const Admin = ({ user }) => {
 
   const fetchItems = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/admin/items', {
+      const res = await axios.get('http://localhost:5001/api/admin/items', {
         headers: { 'x-admin-key': adminKey }
       });
       if (res.data.ok) setItems(res.data.items);
@@ -31,7 +31,7 @@ const Admin = ({ user }) => {
 
   const handleModerate = async (id, approved) => {
     try {
-      await axios.patch(`http://localhost:5000/api/admin/moderate/${id}`, { approved }, {
+      await axios.patch(`http://localhost:5001/api/admin/moderate/${id}`, { approved }, {
         headers: { 'x-admin-key': adminKey }
       });
       fetchItems();
@@ -43,7 +43,7 @@ const Admin = ({ user }) => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to permanently delete this listing?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/admin/delete/${id}`, {
+      await axios.delete(`http://localhost:5001/api/admin/delete/${id}`, {
         headers: { 'x-admin-key': adminKey }
       });
       fetchItems();
