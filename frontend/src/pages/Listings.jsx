@@ -1,13 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const Listings = () => {
+const Listings = ({ user }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeType, setActiveType] = useState('');
   const [savedIds, setSavedIds] = useState([]);
   const [filters, setFilters] = useState({ q: '', category: '', location: '', date: '' });
   const [revealedContactId, setRevealedContactId] = useState(null);
+
+  // Reporting Modal state
+  const [reportingItem, setReportingItem] = useState(null);
+  const [reportReason, setReportReason] = useState('Fake or Fraudulent Listing');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSuccess, setReportSuccess] = useState('');
+  const [submittingReport, setSubmittingReport] = useState(false);
 
   const fetchItems = async () => {
     setLoading(true);
@@ -33,9 +40,47 @@ const Listings = () => {
   };
 
   const toggleSave = (id) => {
-    setSavedIds(prev => 
+    setSavedIds(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
+  };
+
+  const handleOpenReport = (item) => {
+    setReportingItem(item);
+    setReportReason('Fake or Fraudulent Listing');
+    setReportDetails('');
+    setReportSuccess('');
+  };
+
+  const handleSendReport = async (e) => {
+    e.preventDefault();
+    if (!reportingItem) return;
+
+    setSubmittingReport(true);
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/report-user', {
+        reportedUserEmail: reportingItem.contact,
+        reportedUserName: reportingItem.name,
+        reportedByEmail: user?.email || 'student.reporter@apollo.edu.in',
+        reportedByName: user?.name || user?.fullName || 'Campus Member',
+        reason: reportReason,
+        details: reportDetails,
+        itemId: reportingItem._id || reportingItem.id,
+        itemName: reportingItem.name
+      });
+
+      if (res.data.ok) {
+        setReportSuccess('Your allegation has been filed and dispatched to campus administration.');
+        setTimeout(() => {
+          setReportingItem(null);
+          setReportSuccess('');
+        }, 1800);
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to file report');
+    } finally {
+      setSubmittingReport(false);
+    }
   };
 
   return (
@@ -46,7 +91,7 @@ const Listings = () => {
           <p className="section-desc">Browse reported lost and found belongings across Apollo University</p>
         </div>
 
-        {/* Filter Pills Bar matching Shopcart filter buttons */}
+        {/* Filter Pills Bar */}
         <div className="filters-bar">
           <div className="filter-search-wrap">
             <span className="filter-search-icon">🔍</span>
@@ -70,13 +115,13 @@ const Listings = () => {
             className={`filter-chip ${activeType === 'lost' ? 'active' : ''}`}
             onClick={() => setActiveType('lost')}
           >
-            Lost ❓
+            Lost 🔴
           </button>
           <button
             className={`filter-chip ${activeType === 'found' ? 'active' : ''}`}
             onClick={() => setActiveType('found')}
           >
-            Found 💡
+            Found 🟢
           </button>
 
           <select
@@ -121,7 +166,7 @@ const Listings = () => {
           />
         </div>
 
-        {/* Cards Grid matching Shopcart Product Cards */}
+        {/* Cards Grid */}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔄</div>
@@ -152,7 +197,7 @@ const Listings = () => {
                     {isSaved ? '❤️' : '🤍'}
                   </button>
 
-                  {/* Card Image Area with light grey background */}
+                  {/* Card Image */}
                   <div
                     className="card-img"
                     style={{
@@ -161,11 +206,11 @@ const Listings = () => {
                   >
                     {!item.img && (
                       <span style={{ fontSize: '3.5rem', opacity: 0.85 }}>
-                        {item.category === 'Electronics' ? '📱' :
-                         item.category === 'ID/Wallet' ? '💳' :
+                        {item.category === 'Electronics' ? '💻' :
+                         item.category === 'ID/Wallet' ? '🪪' :
                          item.category === 'Books/Stationery' ? '📚' :
                          item.category === 'Keys' ? '🔑' :
-                         item.type === 'lost' ? '❓' : '💡'}
+                         item.type === 'lost' ? '🔴' : '🟢'}
                       </span>
                     )}
                   </div>
@@ -191,14 +236,34 @@ const Listings = () => {
                     </div>
 
                     {isContactRevealed && (
-                      <div className="contact-reveal-box">
-                        <div>👤 Reporter: {item.name}</div>
-                        <div>📞 Contact: {item.contact}</div>
+                      <div className="contact-reveal-box" style={{ marginTop: '12px', padding: '12px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ fontWeight: 600 }}>👤 Contact Name: {item.name}</div>
+                        <div>📞 Reach: <strong>{item.contact}</strong></div>
                         {item.roll && <div>🎓 Roll: {item.roll}</div>}
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenReport(item)}
+                          style={{
+                            marginTop: '8px',
+                            background: 'none',
+                            border: 'none',
+                            color: '#dc2626',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          🚩 Report User / False Claim
+                        </button>
                       </div>
                     )}
 
-                    {/* Pill Action Button matching 'Add to Cart' */}
+                    {/* Action Button */}
                     <button
                       className={`card-action-btn ${isContactRevealed ? 'filled' : ''}`}
                       onClick={() => setRevealedContactId(isContactRevealed ? null : itemId)}
@@ -211,6 +276,107 @@ const Listings = () => {
             })}
           </div>
         )}
+
+        {/* ALLEGATION REPORT MODAL */}
+        {reportingItem && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '16px'
+            }}
+          >
+            <div
+              style={{
+                background: 'var(--bg-card)',
+                borderRadius: '16px',
+                padding: '24px',
+                maxWidth: '460px',
+                width: '100%',
+                border: '1px solid var(--border-color)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🚩</span> Report User / Allegation
+                </h3>
+                <button
+                  onClick={() => setReportingItem(null)}
+                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--text-muted)' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {reportSuccess ? (
+                <div style={{ background: '#dcfce7', color: '#166534', padding: '16px', borderRadius: '8px', fontSize: '14px', textAlign: 'center' }}>
+                  ✅ {reportSuccess}
+                </div>
+              ) : (
+                <form onSubmit={handleSendReport} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                    Filing report against: <strong>{reportingItem.name}</strong> ({reportingItem.contact})
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, marginBottom: '4px' }}>
+                      Reason for Report *
+                    </label>
+                    <select
+                      value={reportReason}
+                      onChange={e => setReportReason(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}
+                    >
+                      <option>Fake or Fraudulent Listing</option>
+                      <option>False Ownership Claim</option>
+                      <option>Refusal to Return Verified Belonging</option>
+                      <option>Abuse or Harassment</option>
+                      <option>Commercial / Spam Advertisement</option>
+                      <option>Other Policy Violation</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, marginBottom: '4px' }}>
+                      Details / Evidence Description
+                    </label>
+                    <textarea
+                      placeholder="Explain the incident for campus administrators to investigate..."
+                      value={reportDetails}
+                      onChange={e => setReportDetails(e.target.value)}
+                      rows={3}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setReportingItem(null)}
+                      style={{ padding: '8px 14px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingReport}
+                      style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: '#dc2626', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      {submittingReport ? 'Filing Report...' : 'Submit Report to Admin'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
     </section>
   );

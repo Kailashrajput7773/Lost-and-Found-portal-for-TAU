@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import axios from 'axios';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -37,6 +38,29 @@ function App() {
     }
   }, [user]);
 
+  // Online Heartbeat Tracker
+  useEffect(() => {
+    if (!user || !user.email) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        const res = await axios.post('http://localhost:5000/api/auth/heartbeat', {
+          email: user.email
+        });
+        if (res.data.isBanned) {
+          alert("Notice: Your account has been suspended by campus administration.");
+          setUser(null);
+        }
+      } catch (err) {
+        // silent fail if offline
+      }
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30000); // Heartbeat every 30s
+    return () => clearInterval(interval);
+  }, [user]);
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
@@ -49,9 +73,10 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/report-lost" element={<ReportLost user={user} />} />
           <Route path="/report-found" element={<ReportFound user={user} />} />
-          <Route path="/listings" element={<Listings />} />
+          <Route path="/listings" element={<Listings user={user} />} />
           <Route path="/admin" element={<Admin user={user} />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       <Footer />

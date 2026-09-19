@@ -27,7 +27,7 @@ const ReportLost = ({ user }) => {
     try {
       const res = await axios.post('http://localhost:5000/api/items', data);
       if (res.data.ok) {
-        alert("Report submitted successfully! Once approved by admin, it will appear on the catalog.");
+        alert("Lost item report published live! Your listing is now active on the campus catalog.");
         navigate('/listings');
       }
     } catch (error) {

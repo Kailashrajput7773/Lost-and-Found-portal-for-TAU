@@ -1,4 +1,4 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
@@ -14,7 +14,7 @@ const itemSchema = new mongoose.Schema({
   location: { type: String, required: true },
   date: { type: String, required: true },
   img: { type: String, default: "" },
-  approved: { type: Boolean, default: false },
+  approved: { type: Boolean, default: true },
   type: { type: String, enum: ['lost', 'found'], required: true },
   createdAt: { type: Date, default: Date.now }
 });
@@ -60,7 +60,7 @@ class ItemWrapper {
     this.location = data.location || "";
     this.date = data.date || "";
     this.img = data.img || "";
-    this.approved = typeof data.approved === 'boolean' ? data.approved : false;
+    this.approved = typeof data.approved === 'boolean' ? data.approved : true;
     this.type = data.type || "lost";
     this.createdAt = data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString();
   }
