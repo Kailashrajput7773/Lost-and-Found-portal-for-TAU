@@ -58,7 +58,7 @@ const PrintPosterModal = ({ item, onClose }) => {
             <div className="poster-visual-box">
               {item.img ? (
                 <img
-                  src={`http://localhost:5000${item.img}`}
+                  src={`http://localhost:5001${item.img}`}
                   alt={item.name}
                   className="poster-item-img"
                 />

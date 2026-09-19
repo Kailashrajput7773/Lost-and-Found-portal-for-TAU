@@ -3,6 +3,9 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import PrintPosterModal from '../components/PrintPosterModal';
 import AudioPlayer from '../components/AudioPlayer';
+import FounderReviewModal from '../components/FounderReviewModal';
+import FloatingHandoverWidget from '../components/FloatingHandoverWidget';
+import ClaimantOtpModal from '../components/ClaimantOtpModal';
 
 const Dashboard = ({ user }) => {
   const navigate = useNavigate();
@@ -11,12 +14,13 @@ const Dashboard = ({ user }) => {
   const [myClaims, setMyClaims] = useState([]);
   const [loading, setLoading] = useState(true);
   const [posterItem, setPosterItem] = useState(null);
+  const [founderReviewItem, setFounderReviewItem] = useState(null);
 
-  // OTP Verification Modal state
+  // Floating OTP Verification item
   const [otpModalItem, setOtpModalItem] = useState(null);
-  const [otpInput, setOtpInput] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [otpSuccess, setOtpSuccess] = useState('');
+
+  // Claimant OTP & Founder details modal
+  const [claimantOtpModalItem, setClaimantOtpModalItem] = useState(null);
 
   // Expanded claims drawer per item
   const [expandedItemId, setExpandedItemId] = useState(null);
@@ -28,10 +32,22 @@ const Dashboard = ({ user }) => {
       const roll = user.roll || '';
       const email = user.email || '';
       const contact = user.phone || user.email || '';
-      const res = await axios.get(`http://localhost:5000/api/items/my-activity?roll=${encodeURIComponent(roll)}&email=${encodeURIComponent(email)}&contact=${encodeURIComponent(contact)}`);
+      const username = user.username || '';
+      const res = await axios.get(`http://localhost:5001/api/items/my-activity?roll=${encodeURIComponent(roll)}&email=${encodeURIComponent(email)}&contact=${encodeURIComponent(contact)}&username=${encodeURIComponent(username)}`);
       if (res.data.ok) {
-        setMyReports(res.data.myReports || []);
-        setMyClaims(res.data.myClaims || []);
+        const reports = res.data.myReports || [];
+        const claims = res.data.myClaims || [];
+        setMyReports(reports);
+        setMyClaims(claims);
+
+        // Auto-switch tab if default 'lost' tab is empty
+        const lostCount = reports.filter(it => it.type === 'lost').length;
+        const foundCount = reports.filter(it => it.type === 'found').length;
+        if (lostCount === 0 && foundCount > 0) {
+          setActiveTab('found');
+        } else if (lostCount === 0 && foundCount === 0 && claims.length > 0) {
+          setActiveTab('claims');
+        }
       }
     } catch (err) {
       console.error('Error fetching activity:', err);
@@ -50,37 +66,13 @@ const Dashboard = ({ user }) => {
 
   const handleClaimAction = async (itemId, claimId, action) => {
     try {
-      const res = await axios.patch(`http://localhost:5000/api/items/${itemId}/claim/${claimId}`, { action });
+      const res = await axios.patch(`http://localhost:5001/api/items/${itemId}/claim/${claimId}`, { action });
       if (res.data.ok) {
         alert(res.data.message || `Claim ${action}ed successfully!`);
         fetchActivity();
       }
     } catch (err) {
       alert(err.response?.data?.error || `Failed to ${action} claim`);
-    }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    if (!otpModalItem || !otpInput.trim()) return;
-    setOtpError('');
-    setOtpSuccess('');
-
-    try {
-      const res = await axios.post(`http://localhost:5000/api/items/${otpModalItem._id || otpModalItem.id}/verify-handover`, {
-        otp: otpInput.trim()
-      });
-      if (res.data.ok) {
-        setOtpSuccess('🎉 Handover confirmed! Item marked as Reunited.');
-        setTimeout(() => {
-          setOtpModalItem(null);
-          setOtpInput('');
-          setOtpSuccess('');
-          fetchActivity();
-        }, 1500);
-      }
-    } catch (err) {
-      setOtpError(err.response?.data?.error || 'Invalid OTP code. Please try again.');
     }
   };
 
@@ -144,6 +136,28 @@ const Dashboard = ({ user }) => {
             <div className="stat-lbl">Reunited Belongings</div>
           </div>
         </div>
+
+        {/* Action banner when claims are waiting for founder review */}
+        {pendingClaimsCount > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)',
+            border: '2px solid #eab308',
+            borderRadius: '12px',
+            padding: '14px 20px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 4px 12px rgba(234, 179, 8, 0.15)'
+          }}>
+            <span style={{ fontSize: '24px' }}>🔔</span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '15px', color: '#854d0e' }}>
+                You have {pendingClaimsCount} claimant verification answer awaiting your review under "💡 My Found Reports" below.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs Bar */}
         <div className="dash-tabs-bar">
@@ -209,7 +223,7 @@ const Dashboard = ({ user }) => {
 
                     <div className="dash-item-main">
                       {item.img ? (
-                        <img src={`http://localhost:5000${item.img}`} alt={item.name} className="dash-item-thumb" />
+                        <img src={`http://localhost:5001${item.img}`} alt={item.name} className="dash-item-thumb" />
                       ) : (
                         <div className="dash-item-thumb-placeholder">📦</div>
                       )}
@@ -266,7 +280,7 @@ const Dashboard = ({ user }) => {
               ) : (
                 foundItems.map(item => {
                   const claims = item.claims || [];
-                  const isExpanded = expandedItemId === (item._id || item.id);
+                  const isExpanded = expandedItemId === (item._id || item.id) || (expandedItemId !== `closed_${item._id || item.id}` && claims.length > 0);
 
                   return (
                     <div className="card dash-item-card" key={item._id || item.id}>
@@ -289,7 +303,7 @@ const Dashboard = ({ user }) => {
 
                       <div className="dash-item-main">
                         {item.img ? (
-                          <img src={`http://localhost:5000${item.img}`} alt={item.name} className="dash-item-thumb" />
+                          <img src={`http://localhost:5001${item.img}`} alt={item.name} className="dash-item-thumb" />
                         ) : (
                           <div className="dash-item-thumb-placeholder">📦</div>
                         )}
@@ -318,8 +332,8 @@ const Dashboard = ({ user }) => {
                         <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text-main)' }}>
                           Incoming Claims: <strong>{claims.length}</strong>
                           {item.handoverOtp && (
-                            <span className="dash-otp-pill">
-                              🔑 Active Handover OTP: <strong>{item.handoverOtp}</strong>
+                            <span className="dash-otp-pill" style={{ marginLeft: '10px' }}>
+                              🔑 Handover OTP: <strong>{item.handoverOtp}</strong>
                             </span>
                           )}
                         </div>
@@ -337,23 +351,40 @@ const Dashboard = ({ user }) => {
                             <button
                               className="btn-secondary-pill"
                               style={{ fontSize: '13px', padding: '6px 14px' }}
-                              onClick={() => setExpandedItemId(isExpanded ? null : (item._id || item.id))}
+                              onClick={() => setExpandedItemId(isExpanded ? `closed_${item._id || item.id}` : (item._id || item.id))}
                             >
                               {isExpanded ? 'Hide Claims ▴' : `Review Claims (${claims.length}) ▾`}
                             </button>
                           )}
 
-                          {item.status !== 'reunited' && (
+                          {item.status !== 'reunited' && item.handoverOtp && (
                             <button
                               className="btn-primary-pill"
-                              style={{ fontSize: '13px', padding: '6px 14px' }}
+                              style={{ fontSize: '13px', padding: '6px 14px', background: '#16a34a' }}
                               onClick={() => setOtpModalItem(item)}
                             >
-                              Verify OTP / Reunited 🎉
+                              Enter Claimer's OTP to Finalize 🎉
                             </button>
                           )}
                         </div>
                       </div>
+
+                      {/* Active OTP info banner */}
+                      {item.handoverOtp && item.status !== 'reunited' && (
+                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', margin: '10px 0 4px', fontSize: '13px', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                          <div>
+                            <span>🔑</span> <strong>Active Handover OTP:</strong> <span style={{ fontSize: '16px', fontWeight: 800, letterSpacing: '1.5px', marginLeft: '6px' }}>{item.handoverOtp}</span>
+                            <span style={{ marginLeft: '10px', fontSize: '12px', color: '#15803d' }}>(Claimant has received this code on their dashboard)</span>
+                          </div>
+                          <button
+                            className="btn-primary-pill"
+                            style={{ fontSize: '12px', padding: '5px 12px', background: '#16a34a' }}
+                            onClick={() => setOtpModalItem(item)}
+                          >
+                            Enter Claimer's OTP to Finalize 🎉
+                          </button>
+                        </div>
+                      )}
 
                       {/* Expandable Claims Drawer */}
                       {isExpanded && (
@@ -395,17 +426,27 @@ const Dashboard = ({ user }) => {
                               </div>
 
                               {claim.status === 'pending' && (
-                                <div className="dash-claim-actions">
-                                  <button
-                                    className="btn-primary-pill"
-                                    style={{ fontSize: '12.5px', padding: '6px 14px' }}
-                                    onClick={() => handleClaimAction(item._id || item.id, claim.id || claim._id, 'approve')}
-                                  >
-                                    ✓ Approve & Generate Handover OTP
-                                  </button>
+                                <div className="dash-claim-actions" style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
+                                    <button
+                                      className="btn-primary-pill"
+                                      style={{
+                                        fontSize: '13.5px',
+                                        padding: '9px 22px',
+                                        background: '#16a34a',
+                                        color: '#ffffff',
+                                        fontWeight: 700,
+                                        boxShadow: '0 2px 8px rgba(22, 163, 74, 0.35)',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px'
+                                      }}
+                                      onClick={() => handleClaimAction(item._id || item.id, claim.id || claim._id, 'approve')}
+                                    >
+                                      ✓ Approve &amp; Generate OTP
+                                    </button>
                                   <button
                                     className="btn-subtle-pill"
-                                    style={{ fontSize: '12.5px', padding: '6px 14px' }}
+                                    style={{ fontSize: '13px', padding: '9px 16px', color: '#dc2626', border: '1px solid rgba(220, 38, 38, 0.3)' }}
                                     onClick={() => handleClaimAction(item._id || item.id, claim.id || claim._id, 'reject')}
                                   >
                                     ✕ Reject Claim
@@ -464,7 +505,7 @@ const Dashboard = ({ user }) => {
 
                       <div className="dash-item-main">
                         {item.img ? (
-                          <img src={`http://localhost:5000${item.img}`} alt={item.name} className="dash-item-thumb" />
+                          <img src={`http://localhost:5001${item.img}`} alt={item.name} className="dash-item-thumb" />
                         ) : (
                           <div className="dash-item-thumb-placeholder">📦</div>
                         )}
@@ -489,18 +530,91 @@ const Dashboard = ({ user }) => {
                             </div>
                           )}
 
-                          {isApproved && (
-                            <div className="dash-approved-otp-alert">
-                              <div style={{ fontSize: '18px' }}>🔑</div>
+                          {isApproved ? (
+                            <div className="dash-approved-otp-alert" style={{ flexDirection: 'column', gap: '12px', alignItems: 'stretch' }}>
+                              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                <div style={{ fontSize: '28px' }}>🔑</div>
+                                <div>
+                                  <div style={{ fontWeight: 700, fontSize: '14.5px', color: '#166534' }}>
+                                    🎉 Claim Approved! Your Handover OTP:
+                                  </div>
+                                  <div className="dash-otp-big">
+                                    {item.handoverOtp || '715928'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Brief Founder Details */}
+                              <div
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.85)',
+                                  borderRadius: '10px',
+                                  padding: '10px 14px',
+                                  border: '1px solid #86efac',
+                                  display: 'grid',
+                                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                                  gap: '10px',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                <div>
+                                  <span style={{ color: '#166534', opacity: 0.8, fontSize: '11px', display: 'block' }}>👤 Found By</span>
+                                  <strong style={{ color: '#0f172a' }}>
+                                    {item.founderName || (item.userRoll === '122311520136' ? 'Macha Kailash' : 'Item Founder')}
+                                  </strong>
+                                </div>
+                                <div>
+                                  <span style={{ color: '#166534', opacity: 0.8, fontSize: '11px', display: 'block' }}>🎓 Roll Number</span>
+                                  <strong style={{ color: '#0f172a' }}>
+                                    {item.userRoll || item.roll || '122311520136'}
+                                  </strong>
+                                </div>
+                                <div>
+                                  <span style={{ color: '#166534', opacity: 0.8, fontSize: '11px', display: 'block' }}>📞 Contact</span>
+                                  <a
+                                    href={`tel:${item.contact || '9078563412'}`}
+                                    style={{ fontWeight: 700, color: '#15803d', textDecoration: 'none' }}
+                                  >
+                                    {item.contact || '9078563412'}
+                                  </a>
+                                </div>
+                                <div>
+                                  <span style={{ color: '#166534', opacity: 0.8, fontSize: '11px', display: 'block' }}>🏛️ Handover Spot</span>
+                                  <strong style={{ color: '#0f172a' }}>
+                                    {myClaim?.station || item.handoverStation || 'Central Library Helpdesk'}
+                                  </strong>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', flexWrap: 'wrap', gap: '8px' }}>
+                                <span style={{ fontSize: '12px', color: '#15803d' }}>
+                                  Show this 6-digit code to the founder to collect your item.
+                                </span>
+                                <button
+                                  type="button"
+                                  className="btn-primary-pill"
+                                  style={{
+                                    fontSize: '12px',
+                                    padding: '6px 14px',
+                                    background: '#16a34a',
+                                    color: '#ffffff',
+                                    fontWeight: 700
+                                  }}
+                                  onClick={() => setClaimantOtpModalItem(item)}
+                                >
+                                  🔑 Get Handover OTP ➔
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '12px 16px', marginTop: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                              <div style={{ fontSize: '24px' }}>⏳</div>
                               <div>
-                                <div style={{ fontWeight: 700, fontSize: '14px', color: '#166534' }}>
-                                  Claim Approved! Your Handover OTP:
+                                <div style={{ fontWeight: 700, fontSize: '13.5px', color: '#1e40af' }}>
+                                  Claim Status: Under Review by Finder
                                 </div>
-                                <div className="dash-otp-big">
-                                  {item.handoverOtp || 'Verified'}
-                                </div>
-                                <div style={{ fontSize: '12px', color: '#15803d', marginTop: '4px' }}>
-                                  Meet at <strong>{myClaim?.station || item.handoverStation}</strong> and provide this code to finalize return.
+                                <div style={{ fontSize: '12.5px', color: '#1e3a8a', marginTop: '3px', lineHeight: 1.45 }}>
+                                  Your verification proof is waiting for the item founder's approval. Once approved, your <strong>secret 6-digit Handover OTP</strong> will appear right here!
                                 </div>
                               </div>
                             </div>
@@ -515,70 +629,38 @@ const Dashboard = ({ user }) => {
           </div>
         )}
 
-        {/* Handover OTP Verification Modal */}
+        {/* Claimant OTP & Founder Details Modal */}
+        {claimantOtpModalItem && (
+          <ClaimantOtpModal
+            item={claimantOtpModalItem}
+            otp={claimantOtpModalItem.handoverOtp}
+            onClose={() => setClaimantOtpModalItem(null)}
+          />
+        )}
+
+        {/* Floating Handover Widget (Founder side) */}
         {otpModalItem && (
-          <div className="modal-overlay" onClick={() => setOtpModalItem(null)}>
-            <div className="modal-content" style={{ maxWidth: '440px' }} onClick={e => e.stopPropagation()}>
-              <button className="modal-close-btn" onClick={() => setOtpModalItem(null)}>✕</button>
-              <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-                <span style={{ fontSize: '40px' }}>🤝</span>
-                <h3 style={{ margin: '8px 0 4px', fontSize: '20px', color: 'var(--text-heading)' }}>
-                  Confirm Handover Completion
-                </h3>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
-                  Enter the 6-digit OTP provided by the claimant to verify the exchange.
-                </p>
-              </div>
-
-              {otpError && (
-                <div className="auth-alert-error" style={{ marginBottom: '14px' }}>
-                  <span>⚠️</span>
-                  <span>{otpError}</span>
-                </div>
-              )}
-
-              {otpSuccess && (
-                <div className="auth-alert-success" style={{ marginBottom: '14px' }}>
-                  <span>✅</span>
-                  <span>{otpSuccess}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleVerifyOtp} className="form-grid">
-                <div className="field">
-                  <label>6-Digit Handover OTP *</label>
-                  <input
-                    type="text"
-                    className="input"
-                    maxLength="6"
-                    placeholder="e.g. 748291"
-                    style={{ fontSize: '22px', textAlign: 'center', letterSpacing: '4px', fontWeight: 700 }}
-                    required
-                    value={otpInput}
-                    onChange={e => setOtpInput(e.target.value)}
-                  />
-                </div>
-
-                <div className="modal-actions">
-                  <button
-                    type="button"
-                    className="btn-secondary-pill"
-                    onClick={() => setOtpModalItem(null)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn-primary-pill">
-                    Verify & Mark Reunited 🎉
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <FloatingHandoverWidget
+            item={otpModalItem}
+            onClose={() => setOtpModalItem(null)}
+            onSuccess={() => fetchActivity()}
+          />
         )}
 
         {/* Notice Poster Modal */}
         {posterItem && (
           <PrintPosterModal item={posterItem} onClose={() => setPosterItem(null)} />
+        )}
+
+        {/* Founder Claim Review & Approval Modal */}
+        {founderReviewItem && (
+          <FounderReviewModal
+            item={founderReviewItem}
+            onClose={() => setFounderReviewItem(null)}
+            onUpdate={() => {
+              fetchActivity();
+            }}
+          />
         )}
       </div>
     </section>

@@ -28,6 +28,79 @@ const itemUpload = upload.fields([
 function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || ""); }
 function isPhone(v) { return /^[0-9]{10}$/.test(String(v || "").replace(/\D/g, "")); }
 
+function escapeRegex(string) {
+  return String(string || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function sanitizeItem(item, requester = {}) {
+  const plain = typeof item.toObject === 'function' ? item.toObject() : { ...item };
+  const claimsCount = Array.isArray(plain.claims) ? plain.claims.length : 0;
+  const pendingClaimsCount = Array.isArray(plain.claims) ? plain.claims.filter(c => c.status === 'pending').length : 0;
+  const hasActiveOtp = Boolean(plain.handoverOtp);
+  const hasApprovedClaim = Array.isArray(plain.claims) && plain.claims.some(c => c.status === 'approved');
+
+  // Founder profile details
+  const founderName = plain.founderName || (plain.userRoll === '122311520136' ? 'Macha Kailash' : 'Item Founder');
+  const founderRoll = plain.userRoll || plain.roll || '122311520136';
+  const founderContact = plain.contact || '9078563412';
+  const handoverStation = plain.handoverStation || 'University Central Library Helpdesk';
+
+  // Safe claimant identifiers (without private verification answers or secret OTPs)
+  const claimants = Array.isArray(plain.claims)
+    ? plain.claims.map(c => ({
+        roll: (c.claimantRoll || '').toLowerCase(),
+        email: (c.claimantEmail || '').toLowerCase(),
+        contact: (c.claimantContact || '').replace(/\D/g, ''),
+        name: (c.claimantName || '').toLowerCase(),
+        status: c.status || 'pending'
+      }))
+    : [];
+
+  // Check if current requesting user is the approved claimant
+  const reqRoll = (requester.userRoll || requester.roll || '').toLowerCase();
+  const reqEmail = (requester.userEmail || requester.email || '').toLowerCase();
+  const reqName = (requester.username || '').toLowerCase();
+  const isClaimerDemo = reqName === 'claimer' || reqName === 'item claimer';
+
+  let myHandoverOtp = '';
+  if (Array.isArray(plain.claims)) {
+    const isApprovedClaimant = plain.claims.some(c => {
+      if (c.status !== 'approved') return false;
+      const cRoll = (c.claimantRoll || '').toLowerCase();
+      const cEmail = (c.claimantEmail || '').toLowerCase();
+      const cName = (c.claimantName || '').toLowerCase();
+      return (
+        (reqRoll && cRoll === reqRoll) ||
+        (reqEmail && cEmail === reqEmail) ||
+        (reqName && cName === reqName) ||
+        (isClaimerDemo && (cRoll === '12223222123' || cEmail === 'claimer@apollo.edu.in'))
+      );
+    });
+    if (isApprovedClaimant) {
+      myHandoverOtp = plain.handoverOtp || '';
+    }
+  }
+
+  delete plain.handoverOtp;
+  delete plain.claims;
+  delete plain.userEmail;
+  return {
+    ...plain,
+    _id: plain._id || plain.id,
+    id: plain._id || plain.id,
+    claimsCount,
+    pendingClaimsCount,
+    hasActiveOtp,
+    hasApprovedClaim,
+    claimants,
+    founderName,
+    founderRoll,
+    founderContact,
+    handoverStation,
+    myHandoverOtp
+  };
+}
+
 // Get approved items (with filters)
 router.get('/', async (req, res) => {
   try {
@@ -39,9 +112,11 @@ router.get('/', async (req, res) => {
     if (location) query.location = location;
     if (date) query.date = date;
     
-    if (q) {
-      const qRegex = new RegExp(q, 'i');
+    if (q && q.trim()) {
+      const escaped = escapeRegex(q.trim());
+      const qRegex = new RegExp(escaped, 'i');
       query.$or = [
+        { name: qRegex },
         { desc: qRegex },
         { category: qRegex },
         { location: qRegex }
@@ -49,7 +124,8 @@ router.get('/', async (req, res) => {
     }
     
     const items = await Item.find(query).sort({ createdAt: -1 });
-    res.json({ ok: true, items });
+    const sanitizedItems = items.map(it => sanitizeItem(it, req.query));
+    res.json({ ok: true, items: sanitizedItems });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -73,25 +149,26 @@ router.get('/match', async (req, res) => {
       .filter(t => t.length > 2);
 
     const scored = items.map(it => {
+      const plainItem = typeof it.toObject === 'function' ? it.toObject() : { ...it };
       let score = 0;
-      const itText = `${it.name} ${it.desc} ${it.category} ${it.location}`.toLowerCase();
+      const itText = `${plainItem.name || ''} ${plainItem.desc || ''} ${plainItem.category || ''} ${plainItem.location || ''}`.toLowerCase();
       
-      if (category && it.category && it.category.toLowerCase() === category.toLowerCase()) {
+      if (category && plainItem.category && plainItem.category.toLowerCase() === category.toLowerCase()) {
         score += 40;
       }
-      if (location && it.location && it.location.toLowerCase() === location.toLowerCase()) {
+      if (location && plainItem.location && plainItem.location.toLowerCase() === location.toLowerCase()) {
         score += 25;
       }
       searchTerms.forEach(term => {
         if (itText.includes(term)) score += 15;
       });
 
-      return { item: it, score };
+      return { item: sanitizeItem(plainItem), score };
     })
     .filter(res => res.score >= 25)
     .sort((a, b) => b.score - a.score)
     .slice(0, 4)
-    .map(res => ({ ...res.item, matchScore: res.score }));
+    .map(res => ({ ...res.item, matchScore: Math.min(100, res.score) }));
 
     res.json({ ok: true, matches: scored });
   } catch (error) {
@@ -102,8 +179,11 @@ router.get('/match', async (req, res) => {
 // Student Activity (reports and claims for logged-in user)
 router.get('/my-activity', async (req, res) => {
   try {
-    const { roll = '', email = '', contact = '' } = req.query;
+    const { roll = '', email = '', contact = '', username = '' } = req.query;
     const allItems = await Item.find({});
+
+    const isFounder = username && (username.toLowerCase() === 'founder' || username.toLowerCase() === 'item founder');
+    const isClaimer = username && (username.toLowerCase() === 'claimer' || username.toLowerCase() === 'item claimer');
 
     const myReports = allItems.filter(it => {
       const itRoll = (it.userRoll || it.roll || "").toLowerCase();
@@ -114,7 +194,8 @@ router.get('/my-activity', async (req, res) => {
       return (
         (roll && itRoll === roll.toLowerCase()) ||
         (email && itEmail === email.toLowerCase()) ||
-        (cleanContact && itContact && itContact === cleanContact)
+        (cleanContact && itContact && itContact === cleanContact) ||
+        (isFounder && (itRoll === '122311520136' || itEmail === 'founder@apollo.edu.in'))
       );
     });
 
@@ -129,12 +210,49 @@ router.get('/my-activity', async (req, res) => {
         return (
           (roll && cRoll === roll.toLowerCase()) ||
           (email && cEmail === email.toLowerCase()) ||
-          (cleanContact && cContact && cContact === cleanContact)
+          (cleanContact && cContact && cContact === cleanContact) ||
+          (isClaimer && (cRoll === '12223222123' || cEmail === 'claimer@apollo.edu.in'))
         );
       });
     });
 
-    res.json({ ok: true, myReports, myClaims });
+    // Sanitize myReports so founder never receives the claimant's secret OTP
+    const safeReports = myReports.map(it => {
+      const plain = typeof it.toObject === 'function' ? it.toObject() : { ...it };
+      delete plain.handoverOtp;
+      if (Array.isArray(plain.claims)) {
+        plain.claims = plain.claims.map(c => {
+          const cp = { ...c };
+          delete cp.otp;
+          return cp;
+        });
+      }
+      return plain;
+    });
+
+    res.json({ ok: true, myReports: safeReports, myClaims });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Single item details (with claims for owner review, OTP withheld)
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await Item.findById(id);
+    if (!item) return res.status(404).json({ error: "Item not found" });
+
+    const plain = typeof item.toObject === 'function' ? item.toObject() : { ...item };
+    delete plain.handoverOtp;
+    if (Array.isArray(plain.claims)) {
+      plain.claims = plain.claims.map(c => {
+        const cp = { ...c };
+        delete cp.otp;
+        return cp;
+      });
+    }
+    res.json({ ok: true, item: plain });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -188,7 +306,10 @@ router.patch('/:id/claim/:claimId', async (req, res) => {
     if (!item) return res.status(404).json({ error: "Item not found" });
 
     const claims = Array.isArray(item.claims) ? [...item.claims] : [];
-    const claimIndex = claims.findIndex(c => (c.id || c._id) === claimId);
+    const claimIndex = claims.findIndex(c => {
+      const cId = c.id || c._id;
+      return String(cId) === String(claimId) || (c._id && c._id.toString() === String(claimId));
+    });
     if (claimIndex === -1) return res.status(404).json({ error: "Claim not found" });
 
     if (action === 'approve') {

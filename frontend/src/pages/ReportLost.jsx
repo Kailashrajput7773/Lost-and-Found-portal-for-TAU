@@ -49,7 +49,7 @@ const ReportLost = ({ user }) => {
           location: formData.location,
           type: 'lost'
         }).toString();
-        const res = await axios.get(`http://localhost:5000/api/items/match?${query}`);
+        const res = await axios.get(`http://localhost:5001/api/items/match?${query}`);
         if (res.data.ok && res.data.matches.length > 0) {
           setMatches(res.data.matches);
           setShowMatches(true);
@@ -83,7 +83,7 @@ const ReportLost = ({ user }) => {
     if (audioFile) data.append('audio', audioFile, 'lost-voice-note.webm');
 
     try {
-      const res = await axios.post('http://localhost:5000/api/items', data);
+      const res = await axios.post('http://localhost:5001/api/items', data);
       if (res.data.ok) {
         alert("Lost item report submitted successfully! Once approved by admin, it will appear on the catalog.");
         navigate('/listings');
@@ -133,7 +133,7 @@ const ReportLost = ({ user }) => {
                     {matches.map(m => (
                       <div className="smart-match-card" key={m._id || m.id}>
                         {m.img ? (
-                          <img src={`http://localhost:5000${m.img}`} alt={m.name} className="smart-match-thumb" />
+                          <img src={`http://localhost:5001${m.img}`} alt={m.name} className="smart-match-thumb" />
                         ) : (
                           <div className="smart-match-thumb-placeholder">📦</div>
                         )}

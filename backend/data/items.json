@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "_id": "0fa1f005-25c0-4a78-a096-cc334423dd06",
+    "id": "0fa1f005-25c0-4a78-a096-cc334423dd06",
+    "name": "Wallet",
+    "roll": "122311520136",
+    "userRoll": "122311520136",
+    "userEmail": "founder@apollo.edu.in",
+    "contact": "9078563412",
+    "category": "ID/Wallet",
+    "desc": "Gold coated leather wallet found near Academic Block benches",
+    "location": "Academic Block",
+    "date": "2026-09-13",
+    "img": "/uploads/1789275636827-dmk99p8wjvs.png",
+    "audio": "",
+    "approved": true,
+    "type": "found",
+    "status": "reunited",
+    "handoverStation": "University Central Library Helpdesk",
+    "handoverOtp": "",
+    "verificationQuestion": "What is the brand or initials engraved inside?",
+    "claims": [
+      {
+        "id": "d48d17f2-aea6-44f7-ab5e-7bae7ac2c3c8",
+        "claimantName": "Item Claimer",
+        "claimantRoll": "12223222123",
+        "claimantEmail": "claimer@apollo.edu.in",
+        "claimantContact": "9898988989",
+        "answer": "It has my student ID card and Apollo University library pass inside",
+        "audio": "",
+        "station": "University Central Library Helpdesk",
+        "status": "approved",
+        "createdAt": "2026-09-13T05:21:45.995Z"
+      }
+    ],
+    "createdAt": "2026-09-13T05:00:36.836Z"
+  },
+  {
+    "_id": "f3c245b1-2400-4232-9582-536a4f3bf317",
+    "id": "f3c245b1-2400-4232-9582-536a4f3bf317",
+    "name": "cal - c",
+    "roll": "122311520136",
+    "userRoll": "122311520136",
+    "userEmail": "founder@apollo.edu.in",
+    "contact": "9078563412",
+    "category": "Electronics",
+    "desc": "calculator",
+    "location": "Cafeteria",
+    "date": "2026-09-13",
+    "img": "/uploads/1789280441769-8pc0419l84g.png",
+    "audio": "",
+    "approved": true,
+    "type": "found",
+    "status": "claim_pending",
+    "handoverStation": "University Central Library Helpdesk",
+    "handoverOtp": "881800",
+    "verificationQuestion": "black one ",
+    "claims": [
+      {
+        "id": "5e666c10-c72e-40aa-b5ce-b7f05a71d8bb",
+        "claimantName": "Item Claimer",
+        "claimantRoll": "12223222123",
+        "claimantEmail": "claimer@apollo.edu.in",
+        "claimantContact": "9898988989",
+        "answer": "mine",
+        "audio": "",
+        "station": "University Central Library Helpdesk",
+        "status": "approved",
+        "createdAt": "2026-09-13T06:21:11.947Z"
+      }
+    ],
+    "createdAt": "2026-09-13T06:20:41.781Z"
+  }
+]
