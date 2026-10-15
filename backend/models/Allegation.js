@@ -1,9 +1,12 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-
-const DATA_FILE = path.join(__dirname, '..', 'data', 'allegations.json');
+const os = require('os');
+const isVercel = !!process.env.VERCEL;
+const DATA_FILE = isVercel
+  ? path.join(os.tmpdir(), 'allegations.json')
+  : path.join(__dirname, '..', 'data', 'allegations.json');
 
 const allegationSchema = new mongoose.Schema({
   reportedUserId: { type: String, default: "" },

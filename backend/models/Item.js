@@ -2,8 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-
-const DATA_FILE = path.join(__dirname, '..', 'data', 'items.json');
+const os = require('os');
+const isVercel = !!process.env.VERCEL;
+const DATA_FILE = isVercel
+  ? path.join(os.tmpdir(), 'items.json')
+  : path.join(__dirname, '..', 'data', 'items.json');
 
 const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },

@@ -1,7 +1,9 @@
 import axios from 'axios';
 
-// Automatically points to environment variable in production or localhost:5000 in dev
-export const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+// Automatically points to environment variable in production, relative origin on Vercel, or localhost:5000 in dev
+export const API_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/+$/, '')
+  : (import.meta.env.DEV ? 'http://localhost:5000' : '');
 
 const api = axios.create({
   baseURL: API_BASE,

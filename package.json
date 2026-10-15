@@ -3,9 +3,24 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "npm run server",
     "dev": "node dev.js",
+    "build": "npm run build --prefix frontend",
+    "start": "npm run server",
     "server": "npm start --prefix backend",
     "client": "npm run dev --prefix frontend"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "dependencies": {
+    "cloudinary": "^2.11.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.9.4",
+    "multer": "^2.3.0",
+    "nodemailer": "^10.1.0",
+    "uuid": "^14.0.2"
   }
 }

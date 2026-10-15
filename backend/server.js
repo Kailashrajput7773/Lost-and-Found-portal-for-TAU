@@ -9,16 +9,32 @@ const adminRoutes = require('./routes/adminRoutes');
 const authRoutes = require('./routes/authRoutes');
 
 dotenv.config();
-connectDB();
 
 const PORT = process.env.PORT || 5000;
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const isVercel = !!process.env.VERCEL;
+const UPLOAD_DIR = isVercel
+  ? path.join(require('os').tmpdir(), 'uploads')
+  : path.join(__dirname, 'uploads');
 
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.warn("Notice: UPLOAD_DIR initialization:", e.message);
 }
 
 const app = express();
+
+// Ensure database connection is ready for incoming requests
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+  } catch (err) {
+    // continue (fallback handled by models)
+  }
+  next();
+});
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -48,8 +64,13 @@ app.use('/api/items', itemRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get("/api/health", (_, res) => res.json({ ok: true, status: "healthy", timestamp: new Date().toISOString() }));
+app.get("/api", (_, res) => res.json({ ok: true, name: "The Apollo University Lost & Found API", status: "operational" }));
 app.get("/", (_, res) => res.json({ ok: true, name: "The Apollo University Lost & Found API", status: "operational" }));
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
