@@ -25,6 +25,9 @@ const Home = () => {
                 <Link to="/report-found" className="btn-secondary-pill">
                   Found an Item?
                 </Link>
+                <Link to="/safetag" className="btn-secondary-pill" style={{ background: 'rgba(13, 148, 136, 0.15)', color: 'var(--primary)', border: '1px solid var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🛡️</span> SafeTag™ QR Sticker
+                </Link>
                 <Link to="/listings" className="btn-subtle-pill">
                   Browse All Items 🔍
                 </Link>
@@ -116,6 +119,41 @@ const Home = () => {
               <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '14.5px', lineHeight: 1.6 }}>
                 Coordinate a handover at safe designated spots like the University Library or Student Desk.
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SafeTag Feature Showcase Section */}
+      <section className="section" style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+        <div className="container">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', alignItems: 'center' }}>
+            <div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '16px', background: 'rgba(13, 148, 136, 0.1)', color: 'var(--primary)', fontWeight: 700, fontSize: '13px', marginBottom: '12px' }}>
+                🛡️ Preventative Campus Safety
+              </div>
+              <h2 style={{ fontSize: '28px', fontWeight: 800, margin: '0 0 12px', color: 'var(--text-main)' }}>
+                Protect Your Belongings Before They Get Lost
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: 1.6, margin: '0 0 20px' }}>
+                Don't wait for your laptop, wallet, or earbuds case to disappear. Generate an official <strong>The Apollo University SafeTag™ QR Sticker</strong> in 30 seconds. Anyone who scans it can return it directly to you or the campus desk!
+              </p>
+              <Link to="/safetag" className="btn-primary-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <span>🏷️</span> Generate My Free SafeTag™
+              </Link>
+            </div>
+
+            <div style={{ background: 'linear-gradient(135deg, rgba(13, 148, 136, 0.1), rgba(16, 185, 129, 0.05))', borderRadius: '16px', padding: '28px', border: '1px solid rgba(13, 148, 136, 0.2)', textAlign: 'center' }}>
+              <div style={{ fontSize: '56px', marginBottom: '12px' }}>📲</div>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--text-main)' }}>
+                Instant Smart Matching & Verification
+              </h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: '0 0 16px' }}>
+                Our intelligent algorithm scans descriptions and campus locations in real time to match lost items with found belongings.
+              </p>
+              <Link to="/listings" style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '14px', textDecoration: 'none' }}>
+                Explore Active Listings & Matches →
+              </Link>
             </div>
           </div>
         </div>

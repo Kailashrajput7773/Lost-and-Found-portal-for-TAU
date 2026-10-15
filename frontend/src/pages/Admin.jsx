@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 const Admin = ({ user }) => {
@@ -41,10 +41,10 @@ const Admin = ({ user }) => {
     try {
       const config = { headers: { 'x-admin-key': adminKey } };
       const [statsRes, usersRes, allegationsRes, itemsRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/admin/analytics', config).catch(() => ({ data: { ok: false } })),
-        axios.get('http://localhost:5000/api/admin/users', config).catch(() => ({ data: { ok: false } })),
-        axios.get('http://localhost:5000/api/admin/allegations', config).catch(() => ({ data: { ok: false } })),
-        axios.get('http://localhost:5000/api/admin/items', config).catch(() => ({ data: { ok: false } }))
+        api.get('/api/admin/analytics', config).catch(() => ({ data: { ok: false } })),
+        api.get('/api/admin/users', config).catch(() => ({ data: { ok: false } })),
+        api.get('/api/admin/allegations', config).catch(() => ({ data: { ok: false } })),
+        api.get('/api/admin/items', config).catch(() => ({ data: { ok: false } }))
       ]);
 
       if (statsRes.data.ok) setStats(statsRes.data.stats);
@@ -68,8 +68,8 @@ const Admin = ({ user }) => {
 
     setActionLoading(targetUser.id);
     try {
-      const res = await axios.patch(
-        `http://localhost:5000/api/admin/users/${targetUser.id}/ban`,
+      const res = await api.patch(
+        `/api/admin/users/${targetUser.id}/ban`,
         { isBanned: shouldBan, banReason: shouldBan ? "Policy violation" : "" },
         { headers: { 'x-admin-key': adminKey } }
       );
@@ -90,7 +90,7 @@ const Admin = ({ user }) => {
   const handleDeleteItem = async (itemId) => {
     if (!window.confirm("Permanently delete this campus listing?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/admin/delete/${itemId}`, {
+      await api.delete(`/api/admin/delete/${itemId}`, {
         headers: { 'x-admin-key': adminKey }
       });
       fetchAllAdminData();

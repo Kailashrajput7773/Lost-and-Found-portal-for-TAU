@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 const Navbar = ({ theme, toggleTheme, user, setUser }) => {
@@ -55,6 +55,9 @@ const Navbar = ({ theme, toggleTheme, user, setUser }) => {
             </Link>
             <Link className={`nav-link ${location.pathname === '/report-found' ? 'active' : ''}`} to="/report-found">
               Report Found
+            </Link>
+            <Link className={`nav-link ${location.pathname === '/safetag' ? 'active' : ''}`} to="/safetag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <span>🏷️</span> SafeTag™
             </Link>
           </nav>
 

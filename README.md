@@ -1,113 +1,100 @@
-# 🏛️ The Apollo University - Lost & Found Portal
+# 🏛️ The Apollo University - Lost & Found Portal Hub
 
-A modern, responsive web application designed for **The Apollo University** campus community to help students and staff report, manage, and reunite lost or found items efficiently.
-
-![The Apollo University Logo](apollo-logo.svg)
+A full-stack, responsive web application for **The Apollo University** campus community to help students and faculty report, manage, match, and reunite lost or found belongings efficiently and securely.
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- **🔍 Browse & Search**: Filter lost belongings by description, category (Book, Wallet, Phone, ID Card, Electronics, Other), location zone, and date.
-- **📝 Report Lost & Found Items**: Easy multi-field reporting forms supporting student details, last seen location, date, description, and photo uploads.
-- **🛡️ Admin Moderation Panel**: Moderate submissions before they go live on the public listings board to ensure campus safety and prevent spam.
-- **🌙 Dark & Light Mode**: Toggle seamlessly between clean light theme and sleek dark mode with automatic user preference persistence.
-- **💎 Glassmorphism UI**: Built with modern CSS design tokens, smooth card hover elevation, responsive grids, and clean typography.
-- **⚡ Dynamic Impact Stats**: Live counters displaying total reported items, return rate, categories, and campus coverage.
+1. **🤖 Automated "Smart Matching" & Scoring**:
+   - Compares lost and found listings in real time using category matching, location proximity, and keyword extraction.
+   - Calculates a percentage match score (e.g. 100% Match) with transparent matching reasons.
+2. **🛡️ Campus SafeTag™ QR Generator**:
+   - Students can generate and print personal QR code stickers for laptops, ID cards, keys, water bottles, and backpacks.
+   - When scanned anywhere on campus, it opens verified return instructions without exposing private phone numbers.
+3. **🔒 Anti-Fraud Ownership Verification Challenge**:
+   - Finders can attach a secret question (e.g. *"What is the sticker on the back?"*).
+   - Claimants must submit their answer to verify ownership before contact info is finalized.
+4. **📲 1-Click WhatsApp Campus Broadcast**:
+   - Instant sharing of lost or found cards directly into Apollo University WhatsApp student groups.
+5. **🎉 "Hall of Reunited" & Confetti Celebration**:
+   - Items can be marked as "Reunited with Owner 🎉" which triggers celebratory confetti and logs successful campus returns.
+6. **📍 Campus Hotspot Dropdowns**:
+   - Pre-configured TAU locations (Central Library, Academic Blocks A/B/C, Cafeteria, Hostels, Auditorium, Sports Arena).
+7. **📸 Client-Side Photo Preview & Mobile Camera**:
+   - Supports capturing images directly from smartphone cameras (`capture="environment"`) with live previews and removal.
+8. **🛡️ Role-Based Authentication & Moderation Console**:
+   - 2FA OTP verification for administrators, user suspension, allegation filing, and live analytics.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: HTML5, Vanilla CSS3 (Custom Design Tokens, Glassmorphism, Responsive Grid), JavaScript (ES6+)
-- **Backend**: Node.js, Express.js
-- **File Uploads**: Multer (Local storage in `/uploads`)
-- **Data Persistence**: JSON Storage in `/data`
+- **Frontend**: React 19, Vite 8, React Router 7, Lucide Icons, Canvas Confetti, QRCode, Vanilla CSS Design System.
+- **Backend**: Node.js, Express, Multer, Nodemailer, Cloudinary (optional cloud media storage).
+- **Database**: Dual-engine architecture:
+  - **Production**: MongoDB / MongoDB Atlas (Mongoose)
+  - **Local/Offline**: Persistent JSON storage (`backend/data/items.json`)
 
 ---
 
-## 📁 Project Structure
+## 🚀 Running Locally
+
+```bash
+# 1. Clone repository
+git clone https://github.com/Kailashrajput7773/Lost-and-Found-portal-for-TAU.git
+cd Lost-and-Found-portal-for-TAU
+
+# 2. Run both Backend & Frontend concurrently
+npm run dev
+```
+
+- **Frontend**: [http://localhost:5173](http://localhost:5173)
+- **Backend API**: [http://localhost:5000](http://localhost:5000)
+
+---
+
+## 🌐 Production Deployment Guide
+
+### Architecture
 
 ```text
-lost-and-found-tau-main/
-├── admin.html           # Admin moderation dashboard page
-├── apollo-logo.svg      # Official vector brand logo
-├── app.js               # Standalone client logic & seed helper
-├── client.js            # Frontend API client & UI interactions
-├── data/                # Data storage directory (JSON)
-│   ├── found.json
-│   └── lost.json
-├── index.html           # Portal landing page with hero & statistics
-├── listings.html        # Public listings search & filter page
-├── package.json         # Node.js project manifest & scripts
-├── report-found.html    # Form to report a found item
-├── report-lost.html     # Form to report a lost item
-├── server.js            # Express REST API backend server
-├── styles.css           # Core styling system (Light/Dark themes)
-├── uploads/             # Directory for uploaded item images
-└── README.md            # Project documentation
+[ Frontend: Vercel ]  ──(HTTPS)──►  [ Backend: Render ]  ──►  [ Database: MongoDB Atlas ]
+                                           │
+                                           └──► [ Cloud Storage: Cloudinary ]
 ```
 
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v16+ recommended)
-- `npm` (comes with Node.js)
-
-### Installation
-
-1. **Clone or Download the Repository**:
-   ```bash
-   git clone https://github.com/your-username/lost-and-found-tau-main.git
-   cd lost-and-found-tau-main
-   ```
-
-2. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Start the Development Server**:
-   ```bash
-   npm start
-   ```
-
-4. **Access the Portal**:
-   Open your browser and navigate to:
+### 1. Database (MongoDB Atlas — Free)
+1. Sign up at [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas) and create a free **M0 Sandbox** cluster.
+2. In **Network Access**, whitelist `0.0.0.0/0` (Allow from anywhere).
+3. In **Database Access**, create a user and copy the connection string:
    ```text
-   http://localhost:3000/
+   mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/lostandfound?retryWrites=true&w=majority
    ```
 
----
+### 2. Backend (Render.com — Free)
+1. Sign in to [render.com](https://render.com) and click **New + ➔ Web Service**.
+2. Connect this GitHub repository.
+3. Configure settings:
+   - **Root Directory**: `backend`
+   - **Build Command**: `npm install`
+   - **Start Command**: `node server.js`
+4. Add Environment Variables:
+   - `PORT`: `5000`
+   - `MONGO_URI`: `your-mongodb-atlas-uri`
+   - `ADMIN_KEY`: `your-secure-admin-key`
+   - `FRONTEND_URL`: `https://your-app.vercel.app`
+   - `EMAIL_USER`: `your-gmail@gmail.com`
+   - `EMAIL_PASS`: `your-gmail-app-password`
+   - *(Optional Cloudinary)*: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+5. Deploy to get your live URL (e.g. `https://tau-backend.onrender.com`).
 
-## ⚙️ Environment Configuration
-
-You can configure custom port and admin secret key using environment variables:
-
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `PORT` | `3000` | Server listening port |
-| `ADMIN_KEY` | `change-me` | Secret key for admin moderation authorization |
-
-Example:
-```bash
-PORT=8080 ADMIN_KEY=my-super-secret-key node server.js
-```
-
----
-
-## 🌐 Public Sharing & Cloud Deployment
-
-### 1-Click Deployment to Render.com
-1. Push your project to a GitHub repository.
-2. Sign in to [Render](https://render.com/) and create a **New Web Service**.
-3. Set **Build Command** to `npm install` and **Start Command** to `node server.js`.
-
----
-
-## 📄 License
-
-This project is developed as a Student Welfare Initiative for **The Apollo University**.
+### 3. Frontend (Vercel — Free)
+1. Sign in to [vercel.com](https://vercel.com) and click **Add New ➔ Project**.
+2. Select your repository.
+3. Configure settings:
+   - **Root Directory**: `frontend`
+   - **Framework Preset**: `Vite`
+4. Add Environment Variable:
+   - `VITE_API_URL`: `https://tau-backend.onrender.com`
+5. Click **Deploy**! React Router navigation is handled automatically by `frontend/vercel.json`.

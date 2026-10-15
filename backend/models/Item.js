@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
@@ -16,6 +16,10 @@ const itemSchema = new mongoose.Schema({
   img: { type: String, default: "" },
   approved: { type: Boolean, default: true },
   type: { type: String, enum: ['lost', 'found'], required: true },
+  status: { type: String, enum: ['active', 'resolved'], default: 'active' },
+  question: { type: String, default: "" },
+  claimedBy: { type: String, default: "" },
+  claimSubmissions: { type: Array, default: [] },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -62,6 +66,10 @@ class ItemWrapper {
     this.img = data.img || "";
     this.approved = typeof data.approved === 'boolean' ? data.approved : true;
     this.type = data.type || "lost";
+    this.status = data.status || "active";
+    this.question = data.question || "";
+    this.claimedBy = data.claimedBy || "";
+    this.claimSubmissions = Array.isArray(data.claimSubmissions) ? data.claimSubmissions : [];
     this.createdAt = data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString();
   }
 
@@ -89,6 +97,7 @@ class ItemWrapper {
       items = items.filter(item => {
         if (typeof query.approved === 'boolean' && item.approved !== query.approved) return false;
         if (query.type && item.type !== query.type) return false;
+        if (query.status && (item.status || 'active') !== query.status) return false;
         if (query.category && item.category !== query.category) return false;
         if (query.location && item.location !== query.location) return false;
         if (query.date && item.date !== query.date) return false;
@@ -108,6 +117,10 @@ class ItemWrapper {
 
     const result = items.map(item => ({
       ...item,
+      status: item.status || 'active',
+      question: item.question || '',
+      claimedBy: item.claimedBy || '',
+      claimSubmissions: item.claimSubmissions || [],
       _id: item._id || item.id,
       id: item._id || item.id
     }));
@@ -123,6 +136,24 @@ class ItemWrapper {
         return Promise.resolve(result).then(resolve, reject);
       }
     };
+  }
+
+  static async findById(id) {
+    if (mongoose.connection.readyState === 1) {
+      return MongoItem.findById(id);
+    }
+    const items = readLocalItems();
+    const item = items.find(it => (it._id || it.id) === id);
+    if (!item) return null;
+    return new ItemWrapper(item);
+  }
+
+  static async countDocuments(query = {}) {
+    if (mongoose.connection.readyState === 1) {
+      return MongoItem.countDocuments(query);
+    }
+    const list = await this.find(query);
+    return list.length;
   }
 
   static async findByIdAndUpdate(id, update, options = {}) {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 
 const ADMIN_EMAIL = 'lostportalhub@gmail.com';
 const ADMIN_PASSWORD = 'qwertyuiop@123';
@@ -57,7 +57,7 @@ const Login = ({ setUser }) => {
     }
 
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
+      const res = await api.post('/api/auth/login', {
         identifier: input,
         password: pass
       });
@@ -107,7 +107,7 @@ const Login = ({ setUser }) => {
     }
 
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
+      const res = await api.post('/api/auth/login', {
         identifier: identifier.trim(),
         password: password.trim(),
         otp: adminOtp.trim()
@@ -150,7 +150,7 @@ const Login = ({ setUser }) => {
 
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/register', {
+      const res = await api.post('/api/auth/register', {
         ...regData,
         email: regData.email.trim().toLowerCase()
       });
@@ -184,7 +184,7 @@ const Login = ({ setUser }) => {
     }
 
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/register', {
+      const res = await api.post('/api/auth/register', {
         ...regData,
         email: regData.email.trim().toLowerCase(),
         otp: regOtp.trim()
@@ -206,7 +206,7 @@ const Login = ({ setUser }) => {
   const handleResendOtp = async (email, purpose) => {
     try {
       setErrorMsg('');
-      const res = await axios.post('http://localhost:5000/api/auth/send-otp', { email, purpose });
+      const res = await api.post('/api/auth/send-otp', { email, purpose });
       if (res.data.ok) {
         if (purpose === 'admin_login') setDispatchedAdminOtp(res.data.otp);
         if (purpose === 'user_register') setDispatchedRegOtp(res.data.otp);

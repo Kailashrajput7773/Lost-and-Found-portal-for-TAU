@@ -1,1 +1,86 @@
-[]
+[
+  {
+    "_id": "tau-item-001",
+    "id": "tau-item-001",
+    "name": "Apple AirPods Pro Case",
+    "roll": "",
+    "contact": "security.desk@apollo.edu.in",
+    "category": "Electronics",
+    "desc": "Found white AirPods Pro charging case on table in the reading room. Picked up and deposited with the security desk.",
+    "location": "Central Library (Floors 1-2)",
+    "date": "2026-10-11",
+    "img": "",
+    "approved": true,
+    "type": "found",
+    "status": "active",
+    "question": "What is engraved or what sticker is on the back of the case?",
+    "claimedBy": "",
+    "claimSubmissions": [
+      {
+        "id": "1791782508613",
+        "answer": "There is an Apple Pikachu sticker on the back",
+        "claimantName": "Kailash R.",
+        "claimantContact": "kailash.student@apollo.edu.in",
+        "submittedAt": "2026-10-12T05:21:48.613Z"
+      }
+    ],
+    "createdAt": "2026-10-11T14:20:00.000Z"
+  },
+  {
+    "_id": "tau-item-002",
+    "id": "tau-item-002",
+    "name": "Lost AirPods Pro Wireless Case",
+    "roll": "122311520188",
+    "contact": "kailash.student@apollo.edu.in",
+    "category": "Electronics",
+    "desc": "Lost my white AirPods Pro case during evening study session near the computer section.",
+    "location": "Central Library (Floors 1-2)",
+    "date": "2026-10-11",
+    "img": "",
+    "approved": true,
+    "type": "lost",
+    "status": "active",
+    "question": "",
+    "claimedBy": "",
+    "claimSubmissions": [],
+    "createdAt": "2026-10-11T16:45:00.000Z"
+  },
+  {
+    "_id": "tau-item-003",
+    "id": "tau-item-003",
+    "name": "Titan Steel Chrono Watch",
+    "roll": "",
+    "contact": "rahul.sharma@apollo.edu.in",
+    "category": "Accessories",
+    "desc": "Found silver analog watch near the cafeteria juice counter.",
+    "location": "Cafeteria & Student Food Court",
+    "date": "2026-10-10",
+    "img": "",
+    "approved": true,
+    "type": "found",
+    "status": "active",
+    "question": "What color is the dial face?",
+    "claimedBy": "",
+    "claimSubmissions": [],
+    "createdAt": "2026-10-10T11:10:00.000Z"
+  },
+  {
+    "_id": "tau-item-004",
+    "id": "tau-item-004",
+    "name": "Scientific Calculator FX-991EX",
+    "roll": "122311520042",
+    "contact": "priya.k@apollo.edu.in",
+    "category": "Electronics",
+    "desc": "Casio Classwiz calculator with initials P.K. written inside the cover. Reunited successfully!",
+    "location": "Main Academic Block A",
+    "date": "2026-10-09",
+    "img": "",
+    "approved": true,
+    "type": "found",
+    "status": "resolved",
+    "question": "Initials inside cover",
+    "claimedBy": "Priya K. (B.Tech CSE)",
+    "claimSubmissions": [],
+    "createdAt": "2026-10-09T09:30:00.000Z"
+  }
+]
