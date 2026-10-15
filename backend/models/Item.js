@@ -2,8 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-
-const DATA_FILE = path.join(__dirname, '..', 'data', 'items.json');
+const os = require('os');
+const isVercel = !!process.env.VERCEL;
+const DATA_FILE = isVercel
+  ? path.join(os.tmpdir(), 'items.json')
+  : path.join(__dirname, '..', 'data', 'items.json');
 
 const claimSchema = new mongoose.Schema({
   id: { type: String, default: () => crypto.randomUUID() },
@@ -29,14 +32,12 @@ const itemSchema = new mongoose.Schema({
   location: { type: String, required: true },
   date: { type: String, required: true },
   img: { type: String, default: "" },
-  audio: { type: String, default: "" },
-  approved: { type: Boolean, default: false },
+  approved: { type: Boolean, default: true },
   type: { type: String, enum: ['lost', 'found'], required: true },
-  status: { type: String, enum: ['active', 'claim_pending', 'reunited'], default: 'active' },
-  handoverStation: { type: String, default: "" },
-  handoverOtp: { type: String, default: "" },
-  verificationQuestion: { type: String, default: "" },
-  claims: [claimSchema],
+  status: { type: String, enum: ['active', 'resolved'], default: 'active' },
+  question: { type: String, default: "" },
+  claimedBy: { type: String, default: "" },
+  claimSubmissions: { type: Array, default: [] },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -83,14 +84,12 @@ class ItemWrapper {
     this.location = data.location || "";
     this.date = data.date || "";
     this.img = data.img || "";
-    this.audio = data.audio || "";
-    this.approved = typeof data.approved === 'boolean' ? data.approved : false;
+    this.approved = typeof data.approved === 'boolean' ? data.approved : true;
     this.type = data.type || "lost";
     this.status = data.status || "active";
-    this.handoverStation = data.handoverStation || "";
-    this.handoverOtp = data.handoverOtp || "";
-    this.verificationQuestion = data.verificationQuestion || "";
-    this.claims = Array.isArray(data.claims) ? data.claims : [];
+    this.question = data.question || "";
+    this.claimedBy = data.claimedBy || "";
+    this.claimSubmissions = Array.isArray(data.claimSubmissions) ? data.claimSubmissions : [];
     this.createdAt = data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString();
   }
 
@@ -140,6 +139,10 @@ class ItemWrapper {
 
     const result = items.map(item => ({
       ...item,
+      status: item.status || 'active',
+      question: item.question || '',
+      claimedBy: item.claimedBy || '',
+      claimSubmissions: item.claimSubmissions || [],
       _id: item._id || item.id,
       id: item._id || item.id,
       status: item.status || "active",
@@ -168,6 +171,14 @@ class ItemWrapper {
     const item = items.find(it => (it._id || it.id) === id);
     if (!item) return null;
     return new ItemWrapper(item);
+  }
+
+  static async countDocuments(query = {}) {
+    if (mongoose.connection.readyState === 1) {
+      return MongoItem.countDocuments(query);
+    }
+    const list = await this.find(query);
+    return list.length;
   }
 
   static async findByIdAndUpdate(id, update, options = {}) {

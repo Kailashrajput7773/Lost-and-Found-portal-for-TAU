@@ -6,38 +6,71 @@ const path = require('path');
 const connectDB = require('./config/db');
 const itemRoutes = require('./routes/itemRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 dotenv.config();
-connectDB();
 
-const PORT = process.env.PORT || 5001;
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const PORT = process.env.PORT || 5000;
+const isVercel = !!process.env.VERCEL;
+const UPLOAD_DIR = isVercel
+  ? path.join(require('os').tmpdir(), 'uploads')
+  : path.join(__dirname, 'uploads');
 
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.warn("Notice: UPLOAD_DIR initialization:", e.message);
 }
 
 const app = express();
-app.use(cors({ origin: true }));
-app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true }));
+
+// Ensure database connection is ready for incoming requests
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+  } catch (err) {
+    // continue (fallback handled by models)
+  }
+  next();
+});
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:5173',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com') || origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use("/uploads", express.static(UPLOAD_DIR));
 
+app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get("/", (_, res) => res.json({ ok: true, name: "MERN Lost & Found API" }));
+app.get("/api/health", (_, res) => res.json({ ok: true, status: "healthy", timestamp: new Date().toISOString() }));
+app.get("/api", (_, res) => res.json({ ok: true, name: "The Apollo University Lost & Found API", status: "operational" }));
+app.get("/", (_, res) => res.json({ ok: true, name: "The Apollo University Lost & Found API", status: "operational" }));
 
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`\n❌ Port ${PORT} is already in use by another application.`);
-    console.error(`💡 Tip: On macOS, disable AirPlay Receiver under System Settings > General > AirDrop & AirPlay.\n`);
-  } else {
-    console.error('Server error:', err);
-  }
-});
+module.exports = app;

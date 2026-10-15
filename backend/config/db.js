@@ -1,10 +1,13 @@
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
+  if (mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+    return;
+  }
   const uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/lostfound';
   try {
     const conn = await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 2500
+      serverSelectionTimeoutMS: 3000
     });
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
