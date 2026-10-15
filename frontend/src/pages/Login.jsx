@@ -575,11 +575,6 @@ const Login = ({ setUser }) => {
                       onChange={e => setIdentifier(e.target.value)}
                       style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
                     />
-                    {regData.role === 'student' && regData.roll && /^\d{10,12}$/.test(regData.roll.trim()) && (
-                      <div style={{ fontSize: '11.5px', color: 'var(--brand-emerald)', marginTop: '4px', fontWeight: 600 }}>
-                        ✓ Valid Apollo University Roll Number
-                      </div>
-                    )}
                   </div>
 
                   <div className="field">

@@ -461,40 +461,6 @@ const Listings = ({ user }) => {
                          item.type === 'lost' ? '🔴' : '🟢'}
                       </span>
                     )}
-
-                    {/* Status Badge overlay */}
-                    <div style={{ position: 'absolute', top: '12px', left: '12px', display: 'flex', gap: '6px' }}>
-                      <span className={`pill ${item.type === 'found' ? 'pill-found' : 'pill-lost'}`}>
-                        {item.type === 'found' ? 'Found' : 'Lost'}
-                      </span>
-                      {isReunited && (
-                        <span className="pill pill-found" style={{ background: '#dcfce7', color: '#15803d' }}>
-                          🎉 Reunited
-                        </span>
-                      )}
-                      {myClaim && (
-                        <span
-                          className="pill"
-                          style={{
-                            background: myClaim.status === 'approved' ? '#dcfce7' : '#fef3c7',
-                            color: myClaim.status === 'approved' ? '#15803d' : '#b45309',
-                            fontWeight: 700
-                          }}
-                        >
-                          {myClaim.status === 'approved' ? '✓ Claim Approved' : '⏳ Claim Pending'}
-                        </span>
-                      )}
-                      {!myClaim && !isReunited && item.hasApprovedClaim && (
-                        <span className="pill pill-subtle" style={{ background: '#e0f2fe', color: '#0369a1' }}>
-                          Handover In Progress
-                        </span>
-                      )}
-                      {!myClaim && !isReunited && !item.hasApprovedClaim && isClaimPending && (
-                        <span className="pill pill-lost" style={{ background: '#fef3c7', color: '#b45309' }}>
-                          ⏳ Claim Pending
-                        </span>
-                      )}
-                    </div>
                   </div>
 
                   {/* Card Content Body */}
@@ -503,11 +469,11 @@ const Listings = ({ user }) => {
                       <div className="card-title">{item.name}</div>
                     </div>
 
-                    <p className="card-desc">{item.desc}</p>
+                    <p className="card-desc-snippet">{item.desc}</p>
 
                     <div className="card-meta-row">
-                      <span className="card-meta-item">
-                        📁 {item.category}
+                      <span className={`pill ${item.type === 'found' ? 'pill-found' : 'pill-lost'}`}>
+                        {item.type === 'found' ? 'Found' : 'Lost'}
                       </span>
                       <span className="card-meta-item" title={item.location}>
                         📍 {item.location}

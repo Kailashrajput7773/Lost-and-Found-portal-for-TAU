@@ -23,7 +23,6 @@ const ReportFound = ({ user }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
-    roll: '',
     contact: user?.phone || user?.email || '',
     category: 'Electronics',
     desc: '',
@@ -58,101 +57,12 @@ const ReportFound = ({ user }) => {
     }
   };
 
-  // Smart Candidate Matches
-  const [matches, setMatches] = useState([]);
-  const [showMatches, setShowMatches] = useState(false);
-  const [matchingLoading, setMatchingLoading] = useState(false);
-
-  // OCR state
-  const [ocrStatus, setOcrStatus] = useState('');
-  const [ocrDetected, setOcrDetected] = useState(null);
-
-  // Debounced smart matching
-  useEffect(() => {
-    if (!formData.name || formData.name.trim().length < 3) {
-      setMatches([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setMatchingLoading(true);
-      try {
-        const query = new URLSearchParams({
-          name: formData.name,
-          category: formData.category,
-          location: formData.location,
-          type: 'found'
-        }).toString();
-        const res = await axios.get(`http://localhost:5001/api/items/match?${query}`);
-        if (res.data.ok && res.data.matches.length > 0) {
-          setMatches(res.data.matches);
-          setShowMatches(true);
-        } else {
-          setMatches([]);
-        }
-      } catch (e) {
-        // silent catch
-      } finally {
-        setMatchingLoading(false);
-      }
-    }, 600);
-
-    return () => clearTimeout(timer);
-  }, [formData.name, formData.category, formData.location]);
-
-  // Handle Image change and trigger client-side OCR
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setImage(file);
-    setImagePreview(URL.createObjectURL(file));
-
-    // Run OCR / ID card scanner
-    scanImageForStudentId(file);
-  };
-
-  const scanImageForStudentId = (file) => {
-    setOcrStatus('Scanning photo for student details...');
-    setOcrDetected(null);
-
-    // Simulate smart pattern recognition on student cards
-    setTimeout(() => {
-      // Analyze file name and create realistic OCR detection
-      const fileName = file.name.toLowerCase();
-      const hasIdKeyword = fileName.includes('id') || fileName.includes('card') || fileName.includes('roll') || formData.category === 'ID/Wallet';
-
-      // Pattern extraction: extract 10-12 digits if present in filename or generate typical Apollo roll format
-      const digitsMatch = fileName.match(/\d{8,12}/);
-      const detectedRoll = digitsMatch ? digitsMatch[0] : (hasIdKeyword ? '122311520112' : null);
-
-      if (detectedRoll) {
-        setOcrDetected({
-          roll: detectedRoll,
-          name: 'Apollo Student',
-          dept: 'School of Technology / CSE'
-        });
-        setOcrStatus(`✨ OCR Successfully Detected: Roll #${detectedRoll}`);
-        // Auto pre-fill
-        setFormData(prev => ({
-          ...prev,
-          roll: detectedRoll,
-          desc: prev.desc ? prev.desc : `Found student ID card. Verified Roll No: ${detectedRoll} (School of Technology).`
-        }));
-      } else {
-        setOcrStatus('Photo analyzed. No clear student barcode/roll number found. Manual entry active.');
-      }
-    }, 800);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     const data = new FormData();
     Object.keys(formData).forEach(key => data.append(key, formData[key]));
-    data.append('userRoll', user?.roll || '');
-    data.append('userEmail', user?.email || '');
     if (image) data.append('image', image);
-    if (audioFile) data.append('audio', audioFile, 'found-voice-note.webm');
 
     try {
       const res = await api.post('/api/items', data);

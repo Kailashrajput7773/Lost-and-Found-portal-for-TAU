@@ -8,24 +8,9 @@ const DATA_FILE = isVercel
   ? path.join(os.tmpdir(), 'items.json')
   : path.join(__dirname, '..', 'data', 'items.json');
 
-const claimSchema = new mongoose.Schema({
-  id: { type: String, default: () => crypto.randomUUID() },
-  claimantName: { type: String, required: true },
-  claimantRoll: { type: String, default: "" },
-  claimantEmail: { type: String, default: "" },
-  claimantContact: { type: String, required: true },
-  answer: { type: String, required: true },
-  audio: { type: String, default: "" },
-  station: { type: String, default: "University Central Library Helpdesk" },
-  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-  createdAt: { type: Date, default: Date.now }
-});
-
 const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   roll: { type: String, required: false, default: "" },
-  userEmail: { type: String, default: "" },
-  userRoll: { type: String, default: "" },
   contact: { type: String, required: true },
   category: { type: String, required: true },
   desc: { type: String, required: true },
@@ -75,9 +60,7 @@ class ItemWrapper {
     this._id = data._id || data.id || crypto.randomUUID();
     this.id = this._id;
     this.name = data.name || "";
-    this.roll = data.roll || data.userRoll || "";
-    this.userRoll = data.userRoll || data.roll || "";
-    this.userEmail = data.userEmail || "";
+    this.roll = data.roll || "";
     this.contact = data.contact || "";
     this.category = data.category || "";
     this.desc = data.desc || "";
@@ -121,8 +104,6 @@ class ItemWrapper {
         if (query.category && item.category !== query.category) return false;
         if (query.location && item.location !== query.location) return false;
         if (query.date && item.date !== query.date) return false;
-        if (query.userRoll && (item.userRoll || item.roll) !== query.userRoll) return false;
-        if (query.userEmail && item.userEmail !== query.userEmail) return false;
         if (Array.isArray(query.$or)) {
           const matchesAny = query.$or.some(cond => {
             return Object.entries(cond).some(([key, val]) => {
@@ -144,10 +125,7 @@ class ItemWrapper {
       claimedBy: item.claimedBy || '',
       claimSubmissions: item.claimSubmissions || [],
       _id: item._id || item.id,
-      id: item._id || item.id,
-      status: item.status || "active",
-      audio: item.audio || "",
-      claims: Array.isArray(item.claims) ? item.claims : []
+      id: item._id || item.id
     }));
 
     return {

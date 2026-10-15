@@ -57,57 +57,12 @@ const ReportLost = ({ user }) => {
     }
   };
 
-  // Smart Candidate Matches
-  const [matches, setMatches] = useState([]);
-  const [showMatches, setShowMatches] = useState(false);
-
-  // Debounced similarity matching against "found" items
-  useEffect(() => {
-    if (!formData.name || formData.name.trim().length < 3) {
-      setMatches([]);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        const query = new URLSearchParams({
-          name: formData.name,
-          category: formData.category,
-          location: formData.location,
-          type: 'lost'
-        }).toString();
-        const res = await axios.get(`http://localhost:5001/api/items/match?${query}`);
-        if (res.data.ok && res.data.matches.length > 0) {
-          setMatches(res.data.matches);
-          setShowMatches(true);
-        } else {
-          setMatches([]);
-        }
-      } catch (e) {
-        // silent catch
-      }
-    }, 600);
-
-    return () => clearTimeout(timer);
-  }, [formData.name, formData.category, formData.location]);
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImage(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     const data = new FormData();
     Object.keys(formData).forEach(key => data.append(key, formData[key]));
-    data.append('userRoll', formData.roll || user?.roll || '');
-    data.append('userEmail', user?.email || '');
     if (image) data.append('image', image);
-    if (audioFile) data.append('audio', audioFile, 'lost-voice-note.webm');
 
     try {
       const res = await api.post('/api/items', data);
