@@ -51,6 +51,44 @@ const upload = multer({
 function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || ""); }
 function isPhone(v) { return /^[0-9]{10}$/.test(String(v || "").replace(/\D/g, "")); }
 
+function maskContact(contact) {
+  if (!contact) return "";
+  const str = String(contact).trim();
+  if (str.includes('@')) {
+    const [user, domain] = str.split('@');
+    const maskedUser = user.length <= 2 ? `${user[0]}*` : `${user[0]}${'*'.repeat(Math.max(1, user.length - 2))}${user[user.length - 1]}`;
+    return `${maskedUser}@${domain}`;
+  }
+  const digits = str.replace(/\D/g, "");
+  if (digits.length >= 10) {
+    return `${digits.slice(0, 2)}******${digits.slice(-2)}`;
+  }
+  return "Protected Contact";
+}
+
+const ADMIN_KEYS = ['lostportalhub-admin-secret-2026', 'change-me', process.env.ADMIN_KEY].filter(Boolean);
+
+function checkIsAdmin(req) {
+  const adminKey = req.headers["x-admin-key"];
+  return Boolean(adminKey && ADMIN_KEYS.includes(adminKey));
+}
+
+function checkIsOwner(req, item) {
+  if (!item) return false;
+  if (checkIsAdmin(req)) return true;
+  const userEmail = (req.headers["x-user-email"] || req.query.userEmail || "").trim().toLowerCase();
+  const userPhone = (req.headers["x-user-phone"] || req.query.userPhone || "").trim();
+  const userRoll = (req.headers["x-user-roll"] || req.query.userRoll || "").trim().toLowerCase();
+
+  const itemContact = String(item.contact || "").trim().toLowerCase();
+  const itemRoll = String(item.roll || "").trim().toLowerCase();
+
+  if (userEmail && itemContact === userEmail) return true;
+  if (userPhone && itemContact.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) return true;
+  if (userRoll && itemRoll && itemRoll === userRoll) return true;
+  return false;
+}
+
 // Tokenize text for smart keyword matching
 function extractKeywords(text) {
   if (!text) return [];
@@ -87,20 +125,21 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// 2. Get items with filtering
+// 2. Get items with filtering & privacy protection
 router.get('/', async (req, res) => {
   try {
-    const { q, category, location, date, type, status } = req.query;
+    const { q, category, location, date, type, status, sort } = req.query;
     let query = {};
 
-    if (type) query.type = type;
-    if (category) query.category = category;
-    if (location) query.location = location;
-    if (date) query.date = date;
-    if (status) query.status = status;
+    if (type && type !== 'all') query.type = type;
+    if (category && category !== 'all' && category !== 'All' && category !== 'All Categories') query.category = category;
+    if (location && location !== 'all' && location !== 'All Locations') query.location = location;
+    if (date && date !== 'all') query.date = date;
+    if (status && status !== 'all') query.status = status;
 
-    if (q) {
-      const qRegex = new RegExp(q, 'i');
+    if (q && q.trim()) {
+      const escapedQ = q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const qRegex = new RegExp(escapedQ, 'i');
       query.$or = [
         { desc: qRegex },
         { category: qRegex },
@@ -109,12 +148,290 @@ router.get('/', async (req, res) => {
       ];
     }
 
-    const items = await Item.find(query).sort({ createdAt: -1 });
-    res.json({ ok: true, items });
+    const sortOrder = sort === 'oldest' ? { createdAt: 1 } : { createdAt: -1 };
+    const items = await Item.find(query).sort(sortOrder);
+
+    const isAdmin = checkIsAdmin(req);
+    // Sanitize contact for public listings unless resolved or viewer is owner/admin
+    const sanitizedItems = items.map(raw => {
+      const it = raw.toObject ? raw.toObject() : { ...raw };
+      const isOwner = checkIsOwner(req, it);
+      if (!isAdmin && !isOwner && it.status !== 'resolved') {
+        it.contact = maskContact(it.contact);
+        it.maskedContact = maskContact(it.contact);
+      }
+      return it;
+    });
+
+    res.json({ ok: true, items: sanitizedItems });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ ok: false, error: error.message });
   }
 });
+
+// 2a. Authenticated User Dashboard & My Reports Data
+router.get('/user/dashboard', async (req, res) => {
+  try {
+    const userEmail = (req.headers["x-user-email"] || req.query.userEmail || "").trim().toLowerCase();
+    const userPhone = (req.headers["x-user-phone"] || req.query.userPhone || "").trim();
+    const userRoll = (req.headers["x-user-roll"] || req.query.userRoll || "").trim().toLowerCase();
+    const isAdmin = checkIsAdmin(req);
+
+    if (!userEmail && !userPhone && !userRoll && !isAdmin) {
+      return res.status(401).json({
+        ok: false,
+        error: "Unauthorized: Please sign in with your Apollo credentials to access your dashboard."
+      });
+    }
+
+    const allItems = await Item.find({}).sort({ createdAt: -1 });
+
+    // Filter reports created by the user
+    const myReports = allItems.filter(item => {
+      if (isAdmin && req.query.viewAll) return true;
+      const c = String(item.contact || "").trim().toLowerCase();
+      const r = String(item.roll || "").trim().toLowerCase();
+      if (userEmail && c === userEmail) return true;
+      if (userPhone && c.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) return true;
+      if (userRoll && r && r === userRoll) return true;
+      return false;
+    });
+
+    // Counts for summary cards (strictly matching real records)
+    const activeLost = myReports.filter(it => it.type === 'lost' && (it.status || 'active') === 'active');
+    const activeFound = myReports.filter(it => it.type === 'found' && (it.status || 'active') === 'active');
+    const resolvedItems = myReports.filter(it => it.status === 'resolved');
+
+    // Pending claims on user's reports that need user's review
+    const claimsToReview = [];
+    myReports.forEach(item => {
+      const claims = Array.isArray(item.claimSubmissions) ? item.claimSubmissions : [];
+      claims.forEach(c => {
+        if (c.status === 'pending') {
+          claimsToReview.push({
+            ...c,
+            itemId: item._id || item.id,
+            itemName: item.name,
+            itemType: item.type,
+            itemLocation: item.location
+          });
+        }
+      });
+    });
+
+    // Claims submitted by this user on OTHER items
+    const mySubmittedClaims = [];
+    allItems.forEach(item => {
+      const isMyItem = myReports.some(m => (m._id || m.id).toString() === (item._id || item.id).toString());
+      const claims = Array.isArray(item.claimSubmissions) ? item.claimSubmissions : [];
+      claims.forEach(c => {
+        const cContact = String(c.claimantContact || "").toLowerCase().trim();
+        const matchesUser = (userEmail && cContact === userEmail) || (userPhone && cContact.replace(/\D/g, '') === userPhone.replace(/\D/g, ''));
+        if (matchesUser) {
+          mySubmittedClaims.push({
+            ...c,
+            itemId: item._id || item.id,
+            itemName: item.name,
+            itemType: item.type,
+            itemStatus: item.status,
+            itemLocation: item.location,
+            itemContact: c.status === 'approved' ? item.contact : maskContact(item.contact),
+            isMyItem
+          });
+        }
+      });
+    });
+
+    // Possible smart matches for user's active items
+    const possibleMatches = [];
+    const activeUserItems = myReports.filter(it => (it.status || 'active') === 'active');
+
+    activeUserItems.forEach(userItem => {
+      const oppositeType = userItem.type === 'lost' ? 'found' : 'lost';
+      const userKeywords = new Set([
+        ...extractKeywords(userItem.name),
+        ...extractKeywords(userItem.desc)
+      ]);
+
+      const candidates = allItems.filter(cand =>
+        cand.type === oppositeType &&
+        (cand.status || 'active') === 'active' &&
+        (cand._id || cand.id).toString() !== (userItem._id || userItem.id).toString()
+      );
+
+      candidates.forEach(cand => {
+        let matchScore = 0;
+        const reasons = [];
+
+        if (cand.category && userItem.category && cand.category.toLowerCase() === userItem.category.toLowerCase()) {
+          matchScore += 40;
+          reasons.push("Matching category: " + cand.category);
+        }
+
+        if (cand.location && userItem.location) {
+          const locA = cand.location.toLowerCase();
+          const locB = userItem.location.toLowerCase();
+          if (locA === locB) {
+            matchScore += 30;
+            reasons.push("Same campus location: " + cand.location);
+          } else if (locA.includes(locB) || locB.includes(locA)) {
+            matchScore += 20;
+            reasons.push("Nearby location");
+          }
+        }
+
+        const candKeywords = [...extractKeywords(cand.name), ...extractKeywords(cand.desc)];
+        let overlap = 0;
+        candKeywords.forEach(k => { if (userKeywords.has(k)) overlap++; });
+        if (overlap > 0) {
+          matchScore += Math.min(30, overlap * 10);
+          reasons.push(`${overlap} matching keywords`);
+        }
+
+        if (matchScore >= 40) {
+          possibleMatches.push({
+            userItem: {
+              id: userItem._id || userItem.id,
+              name: userItem.name,
+              type: userItem.type
+            },
+            matchedItem: {
+              id: cand._id || cand.id,
+              name: cand.name,
+              type: cand.type,
+              category: cand.category,
+              location: cand.location,
+              date: cand.date,
+              img: cand.img
+            },
+            score: Math.min(100, matchScore),
+            reasons
+          });
+        }
+      });
+    });
+
+    // Recent activity feed compiled strictly from real events
+    const recentActivity = [];
+    myReports.forEach(it => {
+      recentActivity.push({
+        id: `act-create-${it._id || it.id}`,
+        type: 'report_created',
+        title: `Reported ${it.type === 'lost' ? 'Lost' : 'Found'}: "${it.name}"`,
+        timestamp: it.createdAt,
+        itemId: it._id || it.id,
+        status: it.status
+      });
+      if (it.status === 'resolved') {
+        recentActivity.push({
+          id: `act-resolve-${it._id || it.id}`,
+          type: 'report_resolved',
+          title: `Reunited: "${it.name}" with ${it.claimedBy || 'Owner'}`,
+          timestamp: it.createdAt,
+          itemId: it._id || it.id,
+          status: 'resolved'
+        });
+      }
+    });
+
+    mySubmittedClaims.forEach(c => {
+      recentActivity.push({
+        id: `act-claim-${c.id}`,
+        type: 'claim_submitted',
+        title: `Claimed "${c.itemName}" (${(c.status || 'pending').toUpperCase()})`,
+        timestamp: c.submittedAt,
+        itemId: c.itemId,
+        status: c.status
+      });
+    });
+
+    recentActivity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    res.json({
+      ok: true,
+      stats: {
+        totalReports: myReports.length,
+        activeLostCount: activeLost.length,
+        activeFoundCount: activeFound.length,
+        resolvedCount: resolvedItems.length,
+        pendingClaimsToReviewCount: claimsToReview.length,
+        mySubmittedClaimsCount: mySubmittedClaims.length,
+        possibleMatchesCount: possibleMatches.length
+      },
+      myReports,
+      claimsToReview,
+      mySubmittedClaims,
+      possibleMatches: possibleMatches.slice(0, 10),
+      recentActivity: recentActivity.slice(0, 15)
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// 2b. Get single item by ID with privacy protection
+const handleGetItemDetail = async (req, res) => {
+  try {
+    const id = req.params.id;
+    let item = null;
+    try {
+      item = await Item.findById(id);
+    } catch {
+      return res.status(404).json({ ok: false, error: "Item not found or invalid identifier." });
+    }
+
+    if (!item) {
+      return res.status(404).json({ ok: false, error: "Item not found." });
+    }
+
+    const isAdmin = checkIsAdmin(req);
+    const isOwner = checkIsOwner(req, item);
+    const userEmail = (req.headers["x-user-email"] || req.query.userEmail || "").trim().toLowerCase();
+    const userPhone = (req.headers["x-user-phone"] || req.query.userPhone || "").trim();
+
+    const rawItem = item.toObject ? item.toObject() : { ...item };
+    const allClaims = Array.isArray(rawItem.claimSubmissions) ? rawItem.claimSubmissions : [];
+
+    // Find if the requesting user has submitted a claim for this item
+    const myClaim = allClaims.find(c => {
+      const cContact = String(c.claimantContact || "").toLowerCase().trim();
+      return (userEmail && cContact === userEmail) || (userPhone && cContact.replace(/\D/g, '') === userPhone.replace(/\D/g, ''));
+    }) || null;
+
+    let sanitizedItem = { ...rawItem };
+
+    if (isAdmin || isOwner) {
+      sanitizedItem.userRole = isAdmin ? 'admin' : 'owner';
+      sanitizedItem.canManageClaims = true;
+      sanitizedItem.claimSubmissions = allClaims;
+      sanitizedItem.claimsCount = allClaims.length;
+    } else {
+      sanitizedItem.userRole = myClaim ? 'claimant' : 'viewer';
+      sanitizedItem.canManageClaims = false;
+      sanitizedItem.claimSubmissions = myClaim ? [myClaim] : [];
+      sanitizedItem.claimsCount = allClaims.length;
+
+      // Mask sensitive contact details for public viewers unless resolved
+      if (sanitizedItem.status !== 'resolved') {
+        sanitizedItem.maskedContact = maskContact(sanitizedItem.contact);
+        sanitizedItem.contact = maskContact(sanitizedItem.contact);
+      }
+    }
+
+    return res.json({
+      ok: true,
+      item: sanitizedItem,
+      myClaim,
+      isOwner: isAdmin || isOwner,
+      isAdmin
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+};
+
+router.get('/detail/:id', handleGetItemDetail);
+router.get('/:id', handleGetItemDetail);
 
 // 3. Smart Matching: Find potential matches for an item
 router.get('/:id/matches', async (req, res) => {
@@ -269,22 +586,37 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-// 5. Mark item as Reunited / Resolved 🎉
+// 5. Mark item as Reunited / Resolved 🎉 (Authorized to reporter or admin only)
 router.patch('/:id/resolve', async (req, res) => {
   try {
+    let item = null;
+    try {
+      item = await Item.findById(req.params.id);
+    } catch {
+      return res.status(404).json({ ok: false, error: "Item not found or invalid identifier." });
+    }
+
+    if (!item) {
+      return res.status(404).json({ ok: false, error: "Item not found." });
+    }
+
+    const isAuthorized = checkIsAdmin(req) || checkIsOwner(req, item);
+    if (!isAuthorized) {
+      return res.status(403).json({
+        ok: false,
+        error: "Forbidden: Only the item reporter or a campus administrator is authorized to close or resolve this listing."
+      });
+    }
+
     const { claimedBy } = req.body;
     const updated = await Item.findByIdAndUpdate(
       req.params.id,
       {
         status: 'resolved',
-        claimedBy: claimedBy || 'Reunited with Owner'
+        claimedBy: claimedBy ? claimedBy.trim() : 'Reunited with Owner'
       },
-      { new: true }
+      { new: true, returnDocument: 'after' }
     );
-
-    if (!updated) {
-      return res.status(404).json({ error: "Item not found" });
-    }
 
     res.json({
       ok: true,
@@ -292,58 +624,252 @@ router.patch('/:id/resolve', async (req, res) => {
       item: updated
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ ok: false, error: error.message });
   }
 });
 
 // 6. Submit a Claim Verification Answer
 router.post('/:id/claim', async (req, res) => {
   try {
-    const { answer, claimantName, claimantContact } = req.body;
-    if (!answer || !claimantContact) {
-      return res.status(400).json({ error: "Please provide your answer and contact information." });
+    const { answer, claimantName, claimantContact, distinguishingDetails } = req.body;
+    const claimDetails = (answer || distinguishingDetails || "").trim();
+
+    if (!claimDetails) {
+      return res.status(400).json({
+        ok: false,
+        error: "Please provide identifying details or answer the verification question to prove ownership."
+      });
     }
 
-    const item = await Item.findById(req.params.id);
+    if (!claimantContact) {
+      return res.status(400).json({
+        ok: false,
+        error: "Please provide your contact phone number or Apollo email so the finder can connect with you."
+      });
+    }
+
+    if (!isEmail(claimantContact) && !isPhone(claimantContact)) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invalid contact format. Please provide a valid email address or 10-digit mobile number."
+      });
+    }
+
+    let item = null;
+    try {
+      item = await Item.findById(req.params.id);
+    } catch {
+      return res.status(404).json({ ok: false, error: "Item not found or invalid identifier." });
+    }
+
     if (!item) {
-      return res.status(404).json({ error: "Item not found" });
+      return res.status(404).json({ ok: false, error: "Item not found." });
+    }
+
+    if (item.status === 'resolved') {
+      return res.status(400).json({
+        ok: false,
+        error: "This item has already been marked as resolved and reunited with its owner."
+      });
+    }
+
+    // Check if claimant account is banned
+    const cleanContact = claimantContact.trim().toLowerCase();
+    const bannedClaimant = await User.findOne({
+      $or: [
+        { email: cleanContact, isBanned: true },
+        { phone: cleanContact, isBanned: true }
+      ]
+    });
+
+    if (bannedClaimant && bannedClaimant.isBanned) {
+      return res.status(403).json({
+        ok: false,
+        error: "Your account is currently restricted from submitting claims due to community guideline violations."
+      });
+    }
+
+    // Prevent reporter from claiming their own found item
+    if (String(item.contact || "").toLowerCase().trim() === cleanContact) {
+      return res.status(400).json({
+        ok: false,
+        error: "You cannot submit an ownership claim on a listing you reported yourself."
+      });
+    }
+
+    const currentSubmissions = Array.isArray(item.claimSubmissions) ? [...item.claimSubmissions] : [];
+
+    // Check if user already submitted a pending claim
+    const existingClaim = currentSubmissions.find(c => {
+      const cContact = String(c.claimantContact || "").toLowerCase().trim();
+      return cContact === cleanContact && c.status === 'pending';
+    });
+
+    if (existingClaim) {
+      return res.status(400).json({
+        ok: false,
+        error: "You already have a pending claim submitted for this item. Please wait for the finder to review your verification."
+      });
     }
 
     const newClaim = {
-      id: Date.now().toString(),
-      answer,
-      claimantName: claimantName || 'Anonymous Campus Member',
-      claimantContact,
-      submittedAt: new Date().toISOString()
+      id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      answer: claimDetails,
+      distinguishingDetails: (distinguishingDetails || claimDetails).trim(),
+      claimantName: (claimantName || 'Campus Student').trim(),
+      claimantContact: cleanContact,
+      status: 'pending', // 'pending' | 'approved' | 'rejected'
+      submittedAt: new Date().toISOString(),
+      reviewedAt: null,
+      reviewNotes: ''
     };
 
-    const currentSubmissions = item.claimSubmissions || [];
     currentSubmissions.push(newClaim);
 
     await Item.findByIdAndUpdate(req.params.id, {
       claimSubmissions: currentSubmissions
     });
 
-    res.json({
+    return res.status(201).json({
       ok: true,
-      message: "Your ownership verification details have been sent to the finder!",
+      message: "Your ownership verification details have been securely submitted to the reporter!",
       claim: newClaim
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ ok: false, error: error.message });
   }
 });
 
-// 7. Delete an item (by item owner or admin)
+// 6b. Review a claim (Approve / Reject) by item reporter or administrator
+router.patch('/:id/claims/:claimId', async (req, res) => {
+  try {
+    let item = null;
+    try {
+      item = await Item.findById(req.params.id);
+    } catch {
+      return res.status(404).json({ ok: false, error: "Item not found" });
+    }
+
+    if (!item) {
+      return res.status(404).json({ ok: false, error: "Item not found" });
+    }
+
+    const isAuthorized = checkIsAdmin(req) || checkIsOwner(req, item);
+    if (!isAuthorized) {
+      return res.status(403).json({
+        ok: false,
+        error: "Forbidden: Only the item reporter or a campus administrator is authorized to review ownership claims."
+      });
+    }
+
+    const { action, reviewNotes } = req.body;
+    if (!action || !['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ ok: false, error: "Action must be either 'approve' or 'reject'." });
+    }
+
+    const currentSubmissions = Array.isArray(item.claimSubmissions) ? [...item.claimSubmissions] : [];
+    const claimIndex = currentSubmissions.findIndex(c => String(c.id) === String(req.params.claimId));
+
+    if (claimIndex === -1) {
+      return res.status(404).json({ ok: false, error: "Claim submission not found" });
+    }
+
+    const targetClaim = { ...currentSubmissions[claimIndex] };
+    targetClaim.status = action === 'approve' ? 'approved' : 'rejected';
+    targetClaim.reviewedAt = new Date().toISOString();
+    targetClaim.reviewNotes = reviewNotes || (action === 'approve' ? 'Ownership verified by reporter.' : 'Verification answers did not match.');
+
+    currentSubmissions[claimIndex] = targetClaim;
+
+    const updates = { claimSubmissions: currentSubmissions };
+
+    if (action === 'approve') {
+      updates.status = 'resolved';
+      updates.claimedBy = targetClaim.claimantName || 'Verified Campus Owner';
+    }
+
+    const updatedItem = await Item.findByIdAndUpdate(req.params.id, updates, { new: true });
+
+    return res.json({
+      ok: true,
+      message: action === 'approve'
+        ? `Claim approved! Item has been marked as reunited with ${targetClaim.claimantName}. 🎉`
+        : `Claim marked as rejected.`,
+      claim: targetClaim,
+      item: updatedItem
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// 7. Edit an item (by item owner or admin)
+router.patch('/:id/edit', async (req, res) => {
+  try {
+    let item = null;
+    try {
+      item = await Item.findById(req.params.id);
+    } catch {
+      return res.status(404).json({ ok: false, error: "Item not found or invalid identifier." });
+    }
+
+    if (!item) {
+      return res.status(404).json({ ok: false, error: "Item not found." });
+    }
+
+    const isAuthorized = checkIsAdmin(req) || checkIsOwner(req, item);
+    if (!isAuthorized) {
+      return res.status(403).json({
+        ok: false,
+        error: "Forbidden: You are not authorized to edit this listing."
+      });
+    }
+
+    const { name, desc, location, category, question } = req.body;
+    const updates = {};
+    if (name) updates.name = name.trim();
+    if (desc) updates.desc = desc.trim();
+    if (location) updates.location = location;
+    if (category) updates.category = category;
+    if (question !== undefined) updates.question = question.trim();
+
+    const updated = await Item.findByIdAndUpdate(req.params.id, updates, { new: true });
+    return res.json({
+      ok: true,
+      message: "Report details updated successfully!",
+      item: updated
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// 8. Delete an item (strictly restricted to item owner or admin)
 router.delete('/:id', async (req, res) => {
   try {
-    const deleted = await Item.findByIdAndDelete(req.params.id);
-    if (!deleted) {
-      return res.status(404).json({ error: "Item not found" });
+    let item = null;
+    try {
+      item = await Item.findById(req.params.id);
+    } catch {
+      return res.status(404).json({ ok: false, error: "Item not found or invalid identifier." });
     }
-    res.json({ ok: true, message: "Item deleted successfully" });
+
+    if (!item) {
+      return res.status(404).json({ ok: false, error: "Item not found." });
+    }
+
+    const isAuthorized = checkIsAdmin(req) || checkIsOwner(req, item);
+    if (!isAuthorized) {
+      return res.status(403).json({
+        ok: false,
+        error: "Forbidden: You are not authorized to delete this report."
+      });
+    }
+
+    await Item.findByIdAndDelete(req.params.id);
+    return res.json({ ok: true, message: "Report permanently deleted." });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ ok: false, error: error.message });
   }
 });
 

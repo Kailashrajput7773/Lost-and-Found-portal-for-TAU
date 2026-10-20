@@ -120,15 +120,16 @@ const Admin = ({ user }) => {
         {/* ADMIN TOP BANNER */}
         <div
           style={{
-            background: 'linear-gradient(135deg, #042f2e 0%, #115e59 50%, #0d9488 100%)',
-            borderRadius: '16px',
-            padding: '24px 30px',
-            color: '#fff',
+            background: 'var(--bg-card)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border-color)',
+            padding: '24px 28px',
+            color: 'var(--text-main)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             marginBottom: '24px',
-            boxShadow: '0 8px 24px rgba(13, 148, 136, 0.25)',
+            boxShadow: 'var(--shadow-card)',
             flexWrap: 'wrap',
             gap: '16px'
           }}
@@ -136,42 +137,39 @@ const Admin = ({ user }) => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '24px' }}>🛡️</span>
-              <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 800, letterSpacing: '-0.5px' }}>
+              <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px', color: 'var(--text-heading)' }}>
                 Campus Admin Control Center
               </h1>
               <span
                 style={{
-                  background: 'rgba(255,255,255,0.2)',
+                  background: 'var(--primary-subtle)',
+                  color: 'var(--primary)',
                   padding: '4px 10px',
-                  borderRadius: '20px',
+                  borderRadius: 'var(--radius-pill)',
                   fontSize: '11px',
                   fontWeight: 700,
-                  textTransform: 'uppercase'
+                  textTransform: 'uppercase',
+                  border: '1px solid rgba(79, 70, 229, 0.2)'
                 }}
               >
                 Live Supervision
               </span>
             </div>
-            <p style={{ margin: '6px 0 0 0', opacity: 0.9, fontSize: '13.5px' }}>
-              Logged in as <strong>lostportalhub@gmail.com</strong> • Full Portal Oversight &amp; User Moderation
+            <p style={{ margin: '6px 0 0 0', color: 'var(--text-muted)', fontSize: '13.5px' }}>
+              Logged in as <strong style={{ color: 'var(--text-main)' }}>lostportalhub@gmail.com</strong> • Full Portal Oversight &amp; User Moderation
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               onClick={fetchAllAdminData}
+              className="btn btn-secondary"
               style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                color: '#fff',
-                padding: '9px 16px',
-                borderRadius: '10px',
-                fontWeight: 700,
-                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                fontSize: '13px'
+                fontSize: '13px',
+                fontWeight: 600
               }}
             >
               🔄 Refresh Data
@@ -183,7 +181,7 @@ const Admin = ({ user }) => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
             gap: '18px',
             marginBottom: '28px'
           }}
@@ -345,7 +343,9 @@ const Admin = ({ user }) => {
             gap: '8px',
             marginBottom: '20px',
             borderBottom: '1px solid var(--border-color)',
-            paddingBottom: '10px'
+            paddingBottom: '10px',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap'
           }}
         >
           <button
@@ -356,7 +356,7 @@ const Admin = ({ user }) => {
               border: 'none',
               fontWeight: 700,
               fontSize: '14px',
-              background: currentTab === 'users' ? 'var(--primary-color, #0f766e)' : 'transparent',
+              background: currentTab === 'users' ? 'var(--primary)' : 'transparent',
               color: currentTab === 'users' ? '#fff' : 'var(--text-muted)',
               cursor: 'pointer',
               display: 'flex',
@@ -375,7 +375,7 @@ const Admin = ({ user }) => {
               border: 'none',
               fontWeight: 700,
               fontSize: '14px',
-              background: currentTab === 'allegations' ? 'var(--primary-color, #0f766e)' : 'transparent',
+              background: currentTab === 'allegations' ? 'var(--primary)' : 'transparent',
               color: currentTab === 'allegations' ? '#fff' : 'var(--text-muted)',
               cursor: 'pointer',
               display: 'flex',
@@ -394,7 +394,7 @@ const Admin = ({ user }) => {
               border: 'none',
               fontWeight: 700,
               fontSize: '14px',
-              background: currentTab === 'items' ? 'var(--primary-color, #0f766e)' : 'transparent',
+              background: currentTab === 'items' ? 'var(--primary)' : 'transparent',
               color: currentTab === 'items' ? '#fff' : 'var(--text-muted)',
               cursor: 'pointer',
               display: 'flex',
@@ -420,7 +420,7 @@ const Admin = ({ user }) => {
                     fontSize: '12.5px',
                     fontWeight: 600,
                     border: '1px solid var(--border-color)',
-                    background: userFilter === 'all' ? '#0f766e' : 'transparent',
+                    background: userFilter === 'all' ? 'var(--primary)' : 'transparent',
                     color: userFilter === 'all' ? '#fff' : 'var(--text-color)',
                     cursor: 'pointer'
                   }}
@@ -434,9 +434,9 @@ const Admin = ({ user }) => {
                     borderRadius: '20px',
                     fontSize: '12.5px',
                     fontWeight: 600,
-                    border: '1px solid #86efac',
-                    background: userFilter === 'online' ? '#16a34a' : 'transparent',
-                    color: userFilter === 'online' ? '#fff' : '#15803d',
+                    border: '1px solid var(--success-border)',
+                    background: userFilter === 'online' ? 'var(--success)' : 'transparent',
+                    color: userFilter === 'online' ? '#fff' : 'var(--success)',
                     cursor: 'pointer'
                   }}
                 >
@@ -449,9 +449,9 @@ const Admin = ({ user }) => {
                     borderRadius: '20px',
                     fontSize: '12.5px',
                     fontWeight: 600,
-                    border: '1px solid #fca5a5',
-                    background: userFilter === 'reported' ? '#dc2626' : 'transparent',
-                    color: userFilter === 'reported' ? '#fff' : '#b91c1c',
+                    border: '1px solid var(--error-border)',
+                    background: userFilter === 'reported' ? 'var(--error)' : 'transparent',
+                    color: userFilter === 'reported' ? '#fff' : 'var(--error)',
                     cursor: 'pointer'
                   }}
                 >
@@ -464,9 +464,9 @@ const Admin = ({ user }) => {
                     borderRadius: '20px',
                     fontSize: '12.5px',
                     fontWeight: 600,
-                    border: '1px solid #6b7280',
-                    background: userFilter === 'banned' ? '#374151' : 'transparent',
-                    color: userFilter === 'banned' ? '#fff' : '#4b5563',
+                    border: '1px solid var(--border-color)',
+                    background: userFilter === 'banned' ? 'var(--text-muted)' : 'transparent',
+                    color: userFilter === 'banned' ? '#fff' : 'var(--text-muted)',
                     cursor: 'pointer'
                   }}
                 >
@@ -475,16 +475,19 @@ const Admin = ({ user }) => {
               </div>
 
               <input
+                id="admin-search-users"
                 type="text"
                 placeholder="🔍 Search user by name, email, or roll..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
+                aria-label="Search users by name, email, or roll number"
                 style={{
                   padding: '8px 14px',
                   borderRadius: '8px',
                   border: '1px solid var(--border-color)',
                   fontSize: '13px',
-                  width: '260px'
+                  width: 'min(100%, 280px)',
+                  minHeight: '44px'
                 }}
               />
             </div>

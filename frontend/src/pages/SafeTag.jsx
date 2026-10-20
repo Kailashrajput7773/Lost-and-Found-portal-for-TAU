@@ -19,7 +19,7 @@ const SafeTag = ({ user }) => {
       width: 260,
       margin: 1.5,
       color: {
-        dark: '#0f766e', // TAU Teal
+        dark: '#4F46E5', // Primary Indigo
         light: '#ffffff'
       }
     })
@@ -44,8 +44,8 @@ const SafeTag = ({ user }) => {
       <div className="container">
         {/* Header */}
         <div className="section-header" style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 36px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '20px', background: 'rgba(13, 148, 136, 0.1)', color: 'var(--primary)', fontWeight: 700, fontSize: '13px', marginBottom: '12px' }}>
-            <Sparkles size={16} /> Preventative Campus Protection
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--primary-subtle)', color: 'var(--primary)', fontWeight: 600, fontSize: '12.5px', marginBottom: '12px', border: '1px solid rgba(79, 70, 229, 0.2)' }}>
+            <Sparkles size={15} /> Preventative Campus Protection
           </div>
           <h1 className="section-title">Campus SafeTag™ QR Generator</h1>
           <p className="section-desc">
@@ -53,7 +53,7 @@ const SafeTag = ({ user }) => {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '32px', alignItems: 'start' }}>
           {/* Form Configuration */}
           <div className="card" style={{ padding: '24px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -62,11 +62,13 @@ const SafeTag = ({ user }) => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label className="field-label">Valuable Item Name *</label>
+                <label htmlFor="safetag-item-name" className="field-label">Valuable Item Name *</label>
                 <select
+                  id="safetag-item-name"
                   className="select"
                   value={itemName}
                   onChange={e => setItemName(e.target.value)}
+                  style={{ minHeight: '44px' }}
                 >
                   <option>MacBook Pro / Laptop</option>
                   <option>AirPods / Earbuds Case</option>
@@ -80,44 +82,51 @@ const SafeTag = ({ user }) => {
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '12px' }}>
                 <div>
-                  <label className="field-label">Your Name</label>
+                  <label htmlFor="safetag-owner-name" className="field-label">Your Name</label>
                   <input
+                    id="safetag-owner-name"
                     type="text"
                     className="input"
                     placeholder="e.g. Kailash R."
                     value={ownerName}
                     onChange={e => setOwnerName(e.target.value)}
+                    style={{ minHeight: '44px' }}
                   />
                 </div>
                 <div>
-                  <label className="field-label">Student Roll No.</label>
+                  <label htmlFor="safetag-roll-number" className="field-label">Student Roll No.</label>
                   <input
+                    id="safetag-roll-number"
                     type="text"
                     className="input"
                     placeholder="e.g. 122311520111"
                     value={rollNumber}
                     onChange={e => setRollNumber(e.target.value)}
+                    style={{ minHeight: '44px' }}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="field-label">Direct Contact (Phone or Apollo Email) *</label>
+                <label htmlFor="safetag-contact" className="field-label">Direct Contact (Phone or Apollo Email) *</label>
                 <input
+                  id="safetag-contact"
                   type="text"
                   className="input"
                   placeholder="e.g. +91 98765 43210 or student@apollo.edu.in"
                   value={contact}
                   onChange={e => setContact(e.target.value)}
                   required
+                  style={{ minHeight: '44px' }}
                 />
               </div>
 
               <div>
-                <label className="field-label">Return Location / Safe Deposit Note</label>
+                <label htmlFor="safetag-return-note" className="field-label">Return Location / Safe Deposit Note</label>
                 <textarea
+                  id="safetag-return-note"
                   className="textarea"
                   rows={2}
                   placeholder="e.g. If found, please return to Central Library Desk or call me."
@@ -131,7 +140,7 @@ const SafeTag = ({ user }) => {
                   type="button"
                   onClick={handlePrint}
                   className="btn-action"
-                  style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', background: 'var(--primary)', color: '#fff', padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 700, cursor: 'pointer' }}
+                  style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', background: 'var(--primary)', color: '#fff', padding: '12px', minHeight: '44px', borderRadius: '10px', border: 'none', fontWeight: 700, cursor: 'pointer' }}
                 >
                   <Printer size={18} /> Print Sticker
                 </button>
@@ -139,7 +148,7 @@ const SafeTag = ({ user }) => {
                   type="button"
                   onClick={handleDownloadQR}
                   className="btn-action"
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '12px 18px', borderRadius: '10px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', padding: '12px 18px', minHeight: '44px', borderRadius: '10px', fontWeight: 600, cursor: 'pointer' }}
                 >
                   <Download size={18} /> Save QR
                 </button>
@@ -158,12 +167,12 @@ const SafeTag = ({ user }) => {
               id="safetag-printable"
               ref={printRef}
               style={{
-                background: 'linear-gradient(145deg, #ffffff, #f0fdfa)',
-                color: '#0f172a',
-                border: '2px dashed #0d9488',
+                background: 'var(--bg-card)',
+                color: 'var(--text-main)',
+                border: '2px dashed var(--primary)',
                 borderRadius: '16px',
                 padding: '24px',
-                boxShadow: '0 12px 30px rgba(13, 148, 136, 0.15)',
+                boxShadow: 'var(--shadow-card-hover)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -175,37 +184,37 @@ const SafeTag = ({ user }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <span style={{ fontSize: '20px' }}>🛡️</span>
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: 800, fontSize: '13px', letterSpacing: '0.5px', color: '#0f766e', textTransform: 'uppercase' }}>
+                  <div style={{ fontWeight: 800, fontSize: '13px', letterSpacing: '0.5px', color: 'var(--primary)', textTransform: 'uppercase' }}>
                     The Apollo University
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>CAMPUS SAFETAG™</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>CAMPUS SAFETAG™</div>
                 </div>
               </div>
 
               {/* QR Image */}
-              <div style={{ background: '#ffffff', padding: '10px', borderRadius: '12px', border: '1px solid #ccfbf1', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', marginBottom: '14px' }}>
+              <div style={{ background: '#ffffff', padding: '10px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-xs)', marginBottom: '14px' }}>
                 {qrUrl ? (
                   <img src={qrUrl} alt="SafeTag QR Code" style={{ width: '180px', height: '180px', display: 'block' }} />
                 ) : (
                   <div style={{ width: '180px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <QrCode size={48} color="#0d9488" />
+                    <QrCode size={48} color="#4F46E5" />
                   </div>
                 )}
               </div>
 
               {/* Tag Details */}
-              <div style={{ width: '100%', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
-                <div style={{ fontWeight: 800, fontSize: '16px', color: '#0f172a', marginBottom: '4px' }}>
+              <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)', marginBottom: '4px' }}>
                   {itemName}
                 </div>
-                <div style={{ fontSize: '12px', color: '#475569', marginBottom: '6px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
                   {ownerName ? `Belongs to: ${ownerName}` : 'Apollo University Campus Belonging'} {rollNumber && `(${rollNumber})`}
                 </div>
-                <div style={{ background: '#0f766e', color: '#ffffff', fontSize: '11.5px', fontWeight: 700, padding: '6px 12px', borderRadius: '6px', margin: '6px 0' }}>
+                <div style={{ background: 'var(--primary)', color: '#ffffff', fontSize: '11.5px', fontWeight: 700, padding: '6px 12px', borderRadius: '6px', margin: '6px 0' }}>
                   📞 Return: {contact || 'Check Portal'}
                 </div>
                 {returnNote && (
-                  <div style={{ fontSize: '10.5px', color: '#64748b', fontStyle: 'italic', marginTop: '4px' }}>
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '4px' }}>
                     "{returnNote}"
                   </div>
                 )}

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const ADMIN_EMAIL = 'lostportalhub@gmail.com';
-const ADMIN_PASSWORD = 'qwertyuiop@123';
 
 const Login = ({ setUser }) => {
   // Tabs: 'signin' | 'register'
@@ -15,10 +14,12 @@ const Login = ({ setUser }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Admin 2FA OTP State (Required every time for admin)
-  const [adminOtpStep, setAdminOtpStep] = useState(false);
-  const [adminOtp, setAdminOtp] = useState('');
-  const [dispatchedAdminOtp, setDispatchedAdminOtp] = useState('');
+  // Real-Time Login 2FA OTP State (For ALL users - Students, Staff, and Admin)
+  const [loginOtpStep, setLoginOtpStep] = useState(false);
+  const [loginOtp, setLoginOtp] = useState('');
+  const [dispatchedLoginOtp, setDispatchedLoginOtp] = useState('');
+  const [targetEmail, setTargetEmail] = useState('');
+  const [isAdminSession, setIsAdminSession] = useState(false);
 
   // Register state
   const [regData, setRegData] = useState({
@@ -34,13 +35,24 @@ const Login = ({ setUser }) => {
   const [regOtp, setRegOtp] = useState('');
   const [dispatchedRegOtp, setDispatchedRegOtp] = useState('');
 
+  // Resend Cooldown Timer
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   // Alerts
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   const navigate = useNavigate();
 
-  // 1. HANDLE SIGN IN
+  // Handle countdown timer for resend
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  // 1. HANDLE SIGN IN (Step 1: Authenticate credentials & Dispatch Real-Time OTP)
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -62,45 +74,38 @@ const Login = ({ setUser }) => {
         password: pass
       });
 
-      // Check if Admin requires 2FA OTP
+      // Real-time OTP challenge required
       if (res.data.requiresOtp) {
-        setAdminOtpStep(true);
-        setDispatchedAdminOtp(res.data.otp || '');
-        setSuccessMsg(res.data.message || 'Security code generated.');
+        setLoginOtpStep(true);
+        // If simulated (because EMAIL_PASS is empty), store the simulation code; otherwise empty
+        setDispatchedLoginOtp(res.data.simulated ? (res.data.otp || '') : '');
+        setTargetEmail(res.data.email || input);
+        setIsAdminSession(res.data.purpose === 'admin_login' || input.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+        setSuccessMsg(res.data.message || `A verification OTP has been dispatched to ${res.data.email || input}`);
+        setResendCooldown(30);
         setLoading(false);
         return;
       }
 
-      // Regular user direct login (no OTP needed)
       if (res.data.ok && res.data.user) {
         setUser(res.data.user);
         navigate(res.data.user.role === 'admin' ? '/admin' : '/listings');
       }
     } catch (error) {
-      // Offline fallback check for Admin
-      if (input.toLowerCase() === ADMIN_EMAIL.toLowerCase() && pass === ADMIN_PASSWORD) {
-        const simOtp = Math.floor(100000 + Math.random() * 900000).toString();
-        setAdminOtpStep(true);
-        setDispatchedAdminOtp(simOtp);
-        setSuccessMsg("Admin 2FA Security Check: Code sent to registered address.");
-        setLoading(false);
-        return;
-      }
-
       setErrorMsg(error.response?.data?.error || 'Unable to authenticate. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. VERIFY ADMIN OTP (Every login)
-  const handleVerifyAdminOtp = async (e) => {
+  // 2. VERIFY REAL-TIME LOGIN OTP (Step 2: Complete Sign In)
+  const handleVerifyLoginOtp = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
     setLoading(true);
 
-    if (!adminOtp.trim()) {
+    if (!loginOtp.trim()) {
       setErrorMsg('Please enter the 6-digit verification OTP.');
       setLoading(false);
       return;
@@ -110,28 +115,19 @@ const Login = ({ setUser }) => {
       const res = await api.post('/api/auth/login', {
         identifier: identifier.trim(),
         password: password.trim(),
-        otp: adminOtp.trim()
+        email: targetEmail,
+        otp: loginOtp.trim()
       });
 
       if (res.data.ok && res.data.user) {
+        setSuccessMsg('Authentication verified successfully! Signing you in...');
         setUser(res.data.user);
-        navigate('/admin');
+        setTimeout(() => {
+          navigate(res.data.user.role === 'admin' ? '/admin' : '/listings');
+        }, 500);
       }
     } catch (error) {
-      // Check simulation
-      if (dispatchedAdminOtp && adminOtp.trim() === dispatchedAdminOtp) {
-        const adminUser = {
-          name: "Portal Administrator",
-          email: ADMIN_EMAIL,
-          role: "admin",
-          adminKey: "lostportalhub-admin-secret-2026",
-          isAdmin: true
-        };
-        setUser(adminUser);
-        navigate('/admin');
-        return;
-      }
-      setErrorMsg(error.response?.data?.error || 'Invalid or expired OTP. Please try again.');
+      setErrorMsg(error.response?.data?.error || 'Invalid or expired OTP. Please check the code in your email and try again.');
     } finally {
       setLoading(false);
     }
@@ -157,8 +153,9 @@ const Login = ({ setUser }) => {
 
       if (res.data.requiresOtp) {
         setRegOtpStep(true);
-        setDispatchedRegOtp(res.data.otp || '');
-        setSuccessMsg(res.data.message || 'Verification OTP generated.');
+        setDispatchedRegOtp(res.data.simulated ? (res.data.otp || '') : '');
+        setSuccessMsg(res.data.message || `Verification OTP dispatched to ${regData.email}`);
+        setResendCooldown(30);
       } else if (res.data.ok && res.data.user) {
         setUser(res.data.user);
         navigate('/listings');
@@ -204,19 +201,26 @@ const Login = ({ setUser }) => {
 
   // Resend OTP Helper
   const handleResendOtp = async (email, purpose) => {
+    if (resendCooldown > 0) return;
     try {
       setErrorMsg('');
+      setSuccessMsg('Dispatching fresh verification OTP...');
       const res = await api.post('/api/auth/send-otp', { email, purpose });
       if (res.data.ok) {
-        if (purpose === 'admin_login') setDispatchedAdminOtp(res.data.otp);
-        if (purpose === 'user_register') setDispatchedRegOtp(res.data.otp);
-        setSuccessMsg(`A fresh OTP has been dispatched to ${email}`);
+        if (res.data.simulated && res.data.otp) {
+          if (purpose === 'admin_login' || purpose === 'user_login' || purpose === 'login') {
+            setDispatchedLoginOtp(res.data.otp);
+          }
+          if (purpose === 'user_register') setDispatchedRegOtp(res.data.otp);
+        } else {
+          setDispatchedLoginOtp('');
+          setDispatchedRegOtp('');
+        }
+        setSuccessMsg(`A fresh real-time OTP has been dispatched to ${email}`);
+        setResendCooldown(30);
       }
-    } catch {
-      const freshOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      if (purpose === 'admin_login') setDispatchedAdminOtp(freshOtp);
-      if (purpose === 'user_register') setDispatchedRegOtp(freshOtp);
-      setSuccessMsg(`New OTP generated: ${freshOtp}`);
+    } catch (err) {
+      setErrorMsg(err.response?.data?.error || 'Failed to resend OTP. Please try again in a few moments.');
     }
   };
 
@@ -234,25 +238,47 @@ const Login = ({ setUser }) => {
           }}
         >
 
-          {/* ADMIN 2FA OTP SCREEN */}
-          {adminOtpStep ? (
+          {/* REAL-TIME LOGIN 2FA OTP SCREEN (FOR ALL USERS) */}
+          {loginOtpStep ? (
             <div>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <div style={{ fontSize: '42px', marginBottom: '8px' }}>🛡️</div>
+                <div style={{ fontSize: '42px', marginBottom: '8px' }}>
+                  {isAdminSession ? '🛡️' : '🔐'}
+                </div>
                 <h1 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-heading)' }}>
-                  Admin 2FA Security Check
+                  {isAdminSession ? 'Admin 2FA Security Check' : 'Real-Time Sign-In Verification'}
                 </h1>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                  A one-time passcode (OTP) is required for each administrator login session.
+                <p style={{ fontSize: '13.5px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                  A 6-digit real-time one-time passcode was sent to{' '}
+                  <strong style={{ color: 'var(--text-body)', wordBreak: 'break-all' }}>{targetEmail}</strong>
                 </p>
               </div>
 
-              {/* Security OTP Display Notification */}
-              {dispatchedAdminOtp && (
+              {/* REAL-TIME EMAIL STATUS BADGE */}
+              {!dispatchedLoginOtp ? (
                 <div
                   style={{
-                    background: 'rgba(15, 118, 110, 0.08)',
-                    border: '1px solid #0d9488',
+                    background: 'var(--primary-subtle)',
+                    border: '1px solid rgba(79, 70, 229, 0.25)',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    marginBottom: '18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <span style={{ fontSize: '22px' }}>📬</span>
+                  <div style={{ fontSize: '12.5px', color: 'var(--primary)', lineHeight: 1.4 }}>
+                    <strong>Check your Email Inbox:</strong> We've dispatched a real-time OTP to your inbox. Check your Spam folder if not received in 30 seconds.
+                  </div>
+                </div>
+              ) : (
+                /* Simulation Fallback Badge if EMAIL_PASS is empty in backend/.env */
+                <div
+                  style={{
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
                     borderRadius: '10px',
                     padding: '12px 16px',
                     marginBottom: '18px',
@@ -263,18 +289,18 @@ const Login = ({ setUser }) => {
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: '11.5px', color: '#0f766e', fontWeight: 700, textTransform: 'uppercase' }}>
-                      🔑 Admin Passcode:
+                    <div style={{ fontSize: '11px', color: '#b45309', fontWeight: 700, textTransform: 'uppercase' }}>
+                      ⚙️ Dev Notice (EMAIL_PASS not in .env):
                     </div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '4px', color: '#0f766e' }}>
-                      {dispatchedAdminOtp}
+                    <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '4px', color: '#b45309' }}>
+                      {dispatchedLoginOtp}
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setAdminOtp(dispatchedAdminOtp)}
+                    onClick={() => setLoginOtp(dispatchedLoginOtp)}
                     style={{
-                      background: '#0d9488',
+                      background: '#d97706',
                       color: '#fff',
                       border: 'none',
                       borderRadius: '6px',
@@ -301,17 +327,18 @@ const Login = ({ setUser }) => {
                 </div>
               )}
 
-              <form onSubmit={handleVerifyAdminOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <form onSubmit={handleVerifyLoginOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div className="field">
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
-                    Enter 6-Digit Admin OTP *
+                  <label htmlFor="login-otp-input" style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                    Enter 6-Digit Verification OTP *
                   </label>
                   <input
+                    id="login-otp-input"
                     type="text"
                     maxLength={6}
                     placeholder="• • • • • •"
-                    value={adminOtp}
-                    onChange={e => setAdminOtp(e.target.value.replace(/\D/g, ''))}
+                    value={loginOtp}
+                    onChange={e => setLoginOtp(e.target.value.replace(/\D/g, ''))}
                     required
                     autoFocus
                     style={{
@@ -333,7 +360,7 @@ const Login = ({ setUser }) => {
                   disabled={loading}
                   style={{
                     padding: '12px',
-                    background: 'linear-gradient(135deg, #0f766e, #0d9488)',
+                    background: 'var(--primary)',
                     color: '#fff',
                     border: 'none',
                     borderRadius: '8px',
@@ -342,20 +369,30 @@ const Login = ({ setUser }) => {
                     cursor: loading ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  {loading ? 'Verifying...' : 'Verify OTP & Enter Admin Console'}
+                  {loading
+                    ? 'Verifying...'
+                    : (isAdminSession ? 'Verify OTP & Enter Admin Console' : 'Verify OTP & Sign In')}
                 </button>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontSize: '12.5px' }}>
                   <button
                     type="button"
-                    onClick={() => handleResendOtp(ADMIN_EMAIL, 'admin_login')}
-                    style={{ background: 'none', border: 'none', color: '#0d9488', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    disabled={resendCooldown > 0}
+                    onClick={() => handleResendOtp(targetEmail, isAdminSession ? 'admin_login' : 'user_login')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: resendCooldown > 0 ? 'var(--text-muted)' : 'var(--primary)',
+                      fontWeight: 700,
+                      cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
+                      padding: 0
+                    }}
                   >
-                    🔄 Resend OTP Code
+                    {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : '🔄 Resend OTP Code'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setAdminOtpStep(false); setAdminOtp(''); setErrorMsg(''); }}
+                    onClick={() => { setLoginOtpStep(false); setLoginOtp(''); setErrorMsg(''); }}
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
                   >
                     ← Back to Sign In
@@ -371,16 +408,36 @@ const Login = ({ setUser }) => {
                 <h1 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-heading)' }}>
                   Verify Campus Email
                 </h1>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                  Enter the 6-digit verification code sent to <strong>{regData.email}</strong>
+                <p style={{ fontSize: '13.5px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                  Enter the 6-digit real-time verification code sent to <strong>{regData.email}</strong>
                 </p>
               </div>
 
-              {dispatchedRegOtp && (
+              {/* REAL-TIME EMAIL STATUS BADGE */}
+              {!dispatchedRegOtp ? (
                 <div
                   style={{
-                    background: 'rgba(34, 197, 94, 0.1)',
-                    border: '1px solid #86efac',
+                    background: 'var(--primary-subtle)',
+                    border: '1px solid rgba(79, 70, 229, 0.25)',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    marginBottom: '18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <span style={{ fontSize: '22px' }}>📬</span>
+                  <div style={{ fontSize: '12.5px', color: 'var(--primary)', lineHeight: 1.4 }}>
+                    <strong>Real-Time Code Sent:</strong> Please check your email inbox and spam folder for the registration passcode.
+                  </div>
+                </div>
+              ) : (
+                /* Simulation Fallback Badge if EMAIL_PASS is empty in backend/.env */
+                <div
+                  style={{
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
                     borderRadius: '10px',
                     padding: '12px 16px',
                     marginBottom: '18px',
@@ -391,10 +448,10 @@ const Login = ({ setUser }) => {
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: '11.5px', color: '#15803d', fontWeight: 700, textTransform: 'uppercase' }}>
-                      🎓 Verification OTP:
+                    <div style={{ fontSize: '11px', color: '#b45309', fontWeight: 700, textTransform: 'uppercase' }}>
+                      ⚙️ Dev Notice (EMAIL_PASS not in .env):
                     </div>
-                    <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '4px', color: '#15803d' }}>
+                    <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '4px', color: '#b45309' }}>
                       {dispatchedRegOtp}
                     </div>
                   </div>
@@ -402,7 +459,7 @@ const Login = ({ setUser }) => {
                     type="button"
                     onClick={() => setRegOtp(dispatchedRegOtp)}
                     style={{
-                      background: '#16a34a',
+                      background: '#d97706',
                       color: '#fff',
                       border: 'none',
                       borderRadius: '6px',
@@ -431,10 +488,11 @@ const Login = ({ setUser }) => {
 
               <form onSubmit={handleVerifyRegisterOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div className="field">
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                  <label htmlFor="reg-otp-input" style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
                     Enter 6-Digit OTP *
                   </label>
                   <input
+                    id="reg-otp-input"
                     type="text"
                     maxLength={6}
                     placeholder="• • • • • •"
@@ -461,7 +519,8 @@ const Login = ({ setUser }) => {
                   disabled={loading}
                   style={{
                     padding: '12px',
-                    background: 'linear-gradient(135deg, #0f766e, #0d9488)',
+                    minHeight: '44px',
+                    background: 'var(--primary)',
                     color: '#fff',
                     border: 'none',
                     borderRadius: '8px',
@@ -476,10 +535,18 @@ const Login = ({ setUser }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontSize: '12.5px' }}>
                   <button
                     type="button"
+                    disabled={resendCooldown > 0}
                     onClick={() => handleResendOtp(regData.email, 'user_register')}
-                    style={{ background: 'none', border: 'none', color: '#0d9488', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: resendCooldown > 0 ? 'var(--text-muted)' : 'var(--primary)',
+                      fontWeight: 700,
+                      cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
+                      padding: 0
+                    }}
                   >
-                    🔄 Resend OTP Code
+                    {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : '🔄 Resend OTP Code'}
                   </button>
                   <button
                     type="button"
@@ -519,10 +586,11 @@ const Login = ({ setUser }) => {
                   onClick={() => { setTab('signin'); setErrorMsg(''); }}
                   style={{
                     padding: '9px',
+                    minHeight: '44px',
                     borderRadius: '8px',
                     border: 'none',
                     fontWeight: 700,
-                    background: tab === 'signin' ? 'var(--primary-color, #0f766e)' : 'rgba(0,0,0,0.05)',
+                    background: tab === 'signin' ? 'var(--primary)' : 'var(--bg-muted)',
                     color: tab === 'signin' ? '#fff' : 'var(--text-muted)',
                     cursor: 'pointer'
                   }}
@@ -535,10 +603,11 @@ const Login = ({ setUser }) => {
                   onClick={() => { setTab('register'); setErrorMsg(''); }}
                   style={{
                     padding: '9px',
+                    minHeight: '44px',
                     borderRadius: '8px',
                     border: 'none',
                     fontWeight: 700,
-                    background: tab === 'register' ? 'var(--primary-color, #0f766e)' : 'rgba(0,0,0,0.05)',
+                    background: tab === 'register' ? 'var(--primary)' : 'var(--bg-muted)',
                     color: tab === 'register' ? '#fff' : 'var(--text-muted)',
                     cursor: 'pointer'
                   }}
@@ -563,39 +632,41 @@ const Login = ({ setUser }) => {
               {tab === 'signin' ? (
                 <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div className="field">
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                    <label htmlFor="signin-identifier" style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
                       Email, Roll Number, or Admin ID *
                     </label>
                     <input
+                      id="signin-identifier"
                       type="text"
                       className="input"
                       placeholder="e.g., student@apollo.edu.in or admin email"
                       required
                       value={identifier}
                       onChange={e => setIdentifier(e.target.value)}
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                     />
                   </div>
 
                   <div className="field">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <label style={{ fontSize: '13px', fontWeight: 600 }}>Password *</label>
+                      <label htmlFor="signin-password" style={{ fontSize: '13px', fontWeight: 600 }}>Password *</label>
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        style={{ background: 'none', border: 'none', color: '#0d9488', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer', fontWeight: 600, padding: '4px' }}
                       >
                         {showPassword ? 'Hide' : 'Show'}
                       </button>
                     </div>
                     <input
+                      id="signin-password"
                       type={showPassword ? 'text' : 'password'}
                       className="input"
                       placeholder="Enter password"
                       required
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                     />
                   </div>
 
@@ -605,7 +676,8 @@ const Login = ({ setUser }) => {
                     style={{
                       marginTop: '8px',
                       padding: '12px',
-                      background: 'linear-gradient(135deg, #0f766e, #0d9488)',
+                      minHeight: '44px',
+                      background: 'var(--primary)',
                       color: '#fff',
                       border: 'none',
                       borderRadius: '8px',
@@ -621,26 +693,28 @@ const Login = ({ setUser }) => {
                 /* REGISTRATION FORM (TRIGGERS OTP VERIFICATION FOR USERS) */
                 <form onSubmit={handleRegisterInitiate} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div className="field">
-                    <label style={{ fontSize: '13px', fontWeight: 600 }}>Full Name *</label>
+                    <label htmlFor="reg-fullname" style={{ fontSize: '13px', fontWeight: 600 }}>Full Name *</label>
                     <input
+                      id="reg-fullname"
                       type="text"
                       className="input"
                       placeholder="e.g., Kailash Rajput"
                       required
                       value={regData.fullName}
                       onChange={e => setRegData({ ...regData, fullName: e.target.value })}
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '10px' }}>
                     <div className="field">
-                      <label style={{ fontSize: '13px', fontWeight: 600 }}>Role *</label>
+                      <label htmlFor="reg-role" style={{ fontSize: '13px', fontWeight: 600 }}>Role *</label>
                       <select
+                        id="reg-role"
                         className="input"
                         value={regData.role}
                         onChange={e => setRegData({ ...regData, role: e.target.value })}
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                       >
                         <option value="student">Student</option>
                         <option value="staff">Staff / Faculty</option>
@@ -648,66 +722,71 @@ const Login = ({ setUser }) => {
                     </div>
 
                     <div className="field">
-                      <label style={{ fontSize: '13px', fontWeight: 600 }}>Roll No / ID</label>
+                      <label htmlFor="reg-roll" style={{ fontSize: '13px', fontWeight: 600 }}>Roll No / ID</label>
                       <input
+                        id="reg-roll"
                         type="text"
                         className="input"
                         placeholder="e.g., 220101001"
                         value={regData.roll}
                         onChange={e => setRegData({ ...regData, roll: e.target.value })}
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                       />
                     </div>
                   </div>
 
                   <div className="field">
-                    <label style={{ fontSize: '13px', fontWeight: 600 }}>Campus Email * (OTP will be sent here)</label>
+                    <label htmlFor="reg-email" style={{ fontSize: '13px', fontWeight: 600 }}>Campus Email * (OTP will be sent here)</label>
                     <input
+                      id="reg-email"
                       type="email"
                       className="input"
                       placeholder="e.g., student@apollo.edu.in"
                       required
                       value={regData.email}
                       onChange={e => setRegData({ ...regData, email: e.target.value })}
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                     />
                   </div>
 
                   <div className="field">
-                    <label style={{ fontSize: '13px', fontWeight: 600 }}>Phone Number</label>
+                    <label htmlFor="reg-phone" style={{ fontSize: '13px', fontWeight: 600 }}>Phone Number</label>
                     <input
+                      id="reg-phone"
                       type="tel"
                       className="input"
                       placeholder="e.g., 9876543210"
                       value={regData.phone}
                       onChange={e => setRegData({ ...regData, phone: e.target.value })}
-                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '10px' }}>
                     <div className="field">
-                      <label style={{ fontSize: '13px', fontWeight: 600 }}>Password *</label>
+                      <label htmlFor="reg-password" style={{ fontSize: '13px', fontWeight: 600 }}>Password *</label>
                       <input
+                        id="reg-password"
                         type="password"
                         className="input"
                         placeholder="Min 4 chars"
                         required
                         value={regData.password}
                         onChange={e => setRegData({ ...regData, password: e.target.value })}
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                       />
                     </div>
                     <div className="field">
-                      <label style={{ fontSize: '13px', fontWeight: 600 }}>Confirm Password *</label>
+                      <label htmlFor="reg-confirm-password" style={{ fontSize: '13px', fontWeight: 600 }}>Confirm Password *</label>
                       <input
+                        id="reg-confirm-password"
                         type="password"
                         className="input"
                         placeholder="Repeat password"
                         required
                         value={regData.confirmPassword}
                         onChange={e => setRegData({ ...regData, confirmPassword: e.target.value })}
-                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                       />
                     </div>
                   </div>
@@ -718,7 +797,8 @@ const Login = ({ setUser }) => {
                     style={{
                       marginTop: '8px',
                       padding: '12px',
-                      background: 'linear-gradient(135deg, #0f766e, #0d9488)',
+                      minHeight: '44px',
+                      background: 'var(--primary)',
                       color: '#fff',
                       border: 'none',
                       borderRadius: '8px',

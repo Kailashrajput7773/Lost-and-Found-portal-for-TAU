@@ -70,7 +70,8 @@ class AllegationWrapper {
 
   async save() {
     if (mongoose.connection.readyState === 1) {
-      return this.save();
+      const doc = new MongoAllegation(this);
+      return doc.save();
     }
     const items = readLocalAllegations();
     items.push({ ...this });
@@ -102,7 +103,7 @@ class AllegationWrapper {
 
   static async findByIdAndUpdate(id, update, options = {}) {
     if (mongoose.connection.readyState === 1) {
-      return MongoAllegation.findByIdAndUpdate(id, update, options);
+      return MongoAllegation.findByIdAndUpdate(id, update, { returnDocument: 'after', ...options });
     }
     const items = readLocalAllegations();
     const index = items.findIndex(it => (it._id || it.id) === id);

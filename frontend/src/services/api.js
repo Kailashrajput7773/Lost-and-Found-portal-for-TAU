@@ -12,6 +12,23 @@ const api = axios.create({
   }
 });
 
+// Automatically attach authenticated user identity headers if signed in
+api.interceptors.request.use((config) => {
+  try {
+    const raw = localStorage.getItem('apollo_user');
+    if (raw) {
+      const u = JSON.parse(raw);
+      if (u.email && !config.headers['x-user-email']) config.headers['x-user-email'] = u.email;
+      if (u.phone && !config.headers['x-user-phone']) config.headers['x-user-phone'] = u.phone;
+      if (u.roll && !config.headers['x-user-roll']) config.headers['x-user-roll'] = u.roll;
+      if (u.adminKey && !config.headers['x-admin-key']) config.headers['x-admin-key'] = u.adminKey;
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return config;
+});
+
 /**
  * Returns full URL for item photos regardless of whether they are hosted on:
  * - Local backend (/uploads/...)

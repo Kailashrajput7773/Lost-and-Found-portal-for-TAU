@@ -70,7 +70,8 @@ class UserWrapper {
 
   async save() {
     if (mongoose.connection.readyState === 1) {
-      return this.save();
+      const doc = new MongoUser(this);
+      return doc.save();
     }
     const users = readLocalUsers();
     const existingIndex = users.findIndex(u => (u._id || u.id) === this._id || (u.email && u.email.toLowerCase() === this.email.toLowerCase()));
@@ -139,7 +140,7 @@ class UserWrapper {
 
   static async findByIdAndUpdate(id, update, options = {}) {
     if (mongoose.connection.readyState === 1) {
-      return MongoUser.findByIdAndUpdate(id, update, options);
+      return MongoUser.findByIdAndUpdate(id, update, { returnDocument: 'after', ...options });
     }
     const users = readLocalUsers();
     const index = users.findIndex(u => (u._id || u.id) === id);

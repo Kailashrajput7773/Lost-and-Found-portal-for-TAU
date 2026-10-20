@@ -2,18 +2,52 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Allegation = require('../models/Allegation');
-const { sendOtpEmail } = require('../utils/mailer');
+const { sendOtpEmail, verifyEmailConfig } = require('../utils/mailer');
 
 const ADMIN_EMAIL = 'lostportalhub@gmail.com';
 const ADMIN_PASSWORD = 'qwertyuiop@123';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'lostportalhub-admin-secret-2026';
 
-// In-memory OTP Store: email -> { otp, expiresAt, purpose }
+// In-memory OTP Store: email -> { otp, expiresAt, purpose, ... }
 const otpStore = new Map();
 
 function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
+
+// Email Diagnostic Endpoint
+router.get('/email-status', async (req, res) => {
+  try {
+    const status = await verifyEmailConfig();
+    res.json({
+      ok: true,
+      sender: process.env.EMAIL_USER || 'lostportalhub@gmail.com',
+      ...status
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Test Email Dispatch Endpoint
+router.post('/test-email', async (req, res) => {
+  try {
+    const { to } = req.body;
+    if (!to) {
+      return res.status(400).json({ error: "Destination email address is required." });
+    }
+    const testOtp = generateOtp();
+    const result = await sendOtpEmail({
+      to: to.trim().toLowerCase(),
+      otp: testOtp,
+      purpose: 'verification',
+      name: 'Portal Test User'
+    });
+    res.json({ ok: result.success, ...result, testOtp });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 // Request / Resend OTP endpoint
 router.post('/send-otp', async (req, res) => {
@@ -29,26 +63,32 @@ router.post('/send-otp', async (req, res) => {
 
     otpStore.set(cleanEmail, { otp, expiresAt, purpose: purpose || 'verification' });
 
-    // Send actual email to recipient!
-    await sendOtpEmail({
+    // Send actual real-time email to recipient
+    const mailResult = await sendOtpEmail({
       to: cleanEmail,
       otp,
       purpose: purpose || 'verification'
     });
 
+    if (!mailResult.success) {
+      return res.status(500).json({
+        ok: false,
+        error: `Failed to deliver real-time email to ${cleanEmail}: ${mailResult.error || 'SMTP delivery failure'}. Check EMAIL_PASS in backend/.env.`
+      });
+    }
+
     res.json({
       ok: true,
-      message: `OTP dispatched successfully to ${cleanEmail}`,
-      otp // Provided for UI simulation / test convenience
+      message: `Real-time OTP dispatched successfully to ${cleanEmail}`,
+      simulated: mailResult.simulated || false,
+      ...(mailResult.simulated ? { otp } : {})
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Login route
-// Admin requires OTP every time!
-// Regular users log in directly with password (NO OTP required for regular login).
+// Login route (Real-time OTP verification for all logins)
 router.post('/login', async (req, res) => {
   try {
     const { identifier, password, otp } = req.body;
@@ -71,19 +111,29 @@ router.post('/login', async (req, res) => {
           purpose: 'admin_login'
         });
 
-        // Dispatch email to admin email
-        await sendOtpEmail({
+        // Dispatch real-time email to admin email
+        const mailResult = await sendOtpEmail({
           to: ADMIN_EMAIL,
           otp: adminOtp,
           purpose: 'admin_login',
           name: 'Portal Administrator'
         });
 
+        if (!mailResult.success) {
+          return res.status(500).json({
+            ok: false,
+            error: `Failed to dispatch Admin 2FA OTP: ${mailResult.error || 'SMTP delivery failure'}. Check EMAIL_PASS in backend/.env.`
+          });
+        }
+
         return res.json({
           ok: true,
           requiresOtp: true,
+          email: ADMIN_EMAIL,
+          purpose: 'admin_login',
+          simulated: mailResult.simulated || false,
           message: `Admin 2FA Security Check: An OTP has been sent to ${ADMIN_EMAIL}.`,
-          otp: adminOtp
+          ...(mailResult.simulated ? { otp: adminOtp } : {})
         });
       }
 
@@ -110,44 +160,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // 2. Regular User Authentication (NO OTP required here)
-    let user = await User.findOne({ email: cleanId });
-    if (!user) {
-      user = await User.findOne({ roll: cleanId });
-    }
-
-    if (user) {
-      if (user.password !== cleanPass) {
-        return res.status(401).json({ error: "Incorrect password. Please verify your credentials." });
-      }
-
-      if (user.isBanned) {
-        return res.status(403).json({
-          error: "Account Suspended: Your access has been restricted by campus administration due to community rule violations.",
-          isBanned: true,
-          banReason: user.banReason || "Terms of service violation"
-        });
-      }
-
-      // Update online heartbeat & lastActive
-      await User.findByIdAndUpdate(user._id || user.id, { lastActive: new Date() });
-
-      return res.json({
-        ok: true,
-        user: {
-          id: user._id || user.id,
-          name: user.name,
-          email: user.email,
-          roll: user.roll,
-          phone: user.phone,
-          role: user.role || 'student',
-          isBanned: false
-        }
-      });
-    }
-
-    // Fallback: Check if entered default admin key
-    const isSpecialAdmin = cleanPass === 'change-me' || cleanId.includes('admin');
+    // 2. Fallback: Check if entered default admin key
+    const isSpecialAdmin = cleanPass === 'change-me' && (cleanId === 'admin' || cleanId === 'admin@apollo.edu.in');
     if (isSpecialAdmin) {
       return res.json({
         ok: true,
@@ -161,23 +175,138 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Auto-create standard active account if student/staff logs in with new credentials
-    const newUser = new User({
-      name: cleanId.split('@')[0],
-      email: cleanId.includes('@') ? cleanId : `${cleanId}@apollo.edu.in`,
-      password: cleanPass,
-      role: 'student',
-      lastActive: new Date()
-    });
-    await newUser.save();
+    // 3. Regular Campus User Authentication (Real-time OTP for every login)
+    let user = await User.findOne({ email: cleanId });
+    if (!user) {
+      user = await User.findOne({ roll: cleanId });
+    }
 
-    res.json({
+    // If identifier is not found and does not look like an email address
+    if (!user && !cleanId.includes('@')) {
+      return res.status(404).json({
+        error: "No account found with this Roll Number. Please sign up in the Register tab first."
+      });
+    }
+
+    // Determine target email for dispatching real-time OTP
+    const userEmail = (user?.email || cleanId).toLowerCase();
+    const userName = user?.name || cleanId.split('@')[0];
+    const isNewUser = !user;
+
+    // Validate password if existing user
+    if (user) {
+      if (user.password !== cleanPass) {
+        return res.status(401).json({ error: "Incorrect password. Please verify your credentials." });
+      }
+
+      if (user.isBanned) {
+        return res.status(403).json({
+          error: "Account Suspended: Your access has been restricted by campus administration due to community rule violations.",
+          isBanned: true,
+          banReason: user.banReason || "Terms of service violation"
+        });
+      }
+    } else {
+      if (cleanPass.length < 4) {
+        return res.status(400).json({ error: "Password must be at least 4 characters long." });
+      }
+    }
+
+    // STEP A: If no OTP supplied yet, generate and send real-time OTP to user's respective email
+    if (!otp) {
+      const loginOtp = generateOtp();
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+
+      otpStore.set(userEmail, {
+        otp: loginOtp,
+        expiresAt,
+        purpose: 'user_login',
+        password: cleanPass,
+        name: userName,
+        roll: user?.roll || '',
+        isNewUser
+      });
+
+      // Dispatch real email via Nodemailer
+      const mailResult = await sendOtpEmail({
+        to: userEmail,
+        otp: loginOtp,
+        purpose: 'user_login',
+        name: userName
+      });
+
+      if (!mailResult.success) {
+        return res.status(500).json({
+          ok: false,
+          error: `Failed to send real-time OTP to ${userEmail}: ${mailResult.error || 'SMTP delivery failure'}. Check EMAIL_PASS in backend/.env.`
+        });
+      }
+
+      return res.json({
+        ok: true,
+        requiresOtp: true,
+        email: userEmail,
+        purpose: 'user_login',
+        simulated: mailResult.simulated || false,
+        message: `Real-time OTP dispatched to ${userEmail}. Please verify your passcode to sign in.`,
+        ...(mailResult.simulated ? { otp: loginOtp } : {})
+      });
+    }
+
+    // STEP B: Verify submitted OTP
+    const targetEmail = req.body.email ? String(req.body.email).trim().toLowerCase() : userEmail;
+    const record = otpStore.get(targetEmail) || otpStore.get(userEmail);
+
+    if (!record || record.otp !== String(otp).trim() || Date.now() > record.expiresAt) {
+      return res.status(400).json({
+        error: "Invalid or expired OTP. Please check your inbox or click Resend."
+      });
+    }
+
+    // OTP Verified: consume OTP
+    otpStore.delete(userEmail);
+    if (targetEmail !== userEmail) otpStore.delete(targetEmail);
+
+    // If new user logging in for the first time, persist account
+    if (isNewUser) {
+      const newUser = new User({
+        name: userName,
+        email: userEmail,
+        roll: record.roll || '',
+        password: cleanPass,
+        role: 'student',
+        lastActive: new Date(),
+        isBanned: false,
+        reportsReceived: 0
+      });
+      await newUser.save();
+
+      return res.json({
+        ok: true,
+        user: {
+          id: newUser._id || newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          roll: newUser.roll,
+          phone: newUser.phone,
+          role: newUser.role,
+          isBanned: false
+        }
+      });
+    }
+
+    // Existing user: update lastActive heartbeat
+    await User.findByIdAndUpdate(user._id || user.id, { lastActive: new Date() });
+
+    return res.json({
       ok: true,
       user: {
-        id: newUser._id || newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
+        id: user._id || user.id,
+        name: user.name,
+        email: user.email,
+        roll: user.roll,
+        phone: user.phone,
+        role: user.role || 'student',
         isBanned: false
       }
     });
@@ -186,7 +315,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Register route (MANDATORY OTP for users ONLY during registration)
+// Register route (Real-time OTP for new campus registrations)
 router.post('/register', async (req, res) => {
   try {
     const { fullName, email, roll, phone, role, password, otp } = req.body;
@@ -197,10 +326,10 @@ router.post('/register', async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
     const existing = await User.findOne({ email: cleanEmail });
     if (existing) {
-      return res.status(400).json({ error: "An account with this email already exists." });
+      return res.status(400).json({ error: "An account with this email already exists. Please sign in instead." });
     }
 
-    // Step A: If no OTP submitted yet, generate and send verification OTP to the user's email!
+    // Step A: If no OTP submitted yet, generate and send verification OTP to the user's respective email!
     if (!otp) {
       const regOtp = generateOtp();
       const expiresAt = Date.now() + 10 * 60 * 1000;
@@ -211,18 +340,28 @@ router.post('/register', async (req, res) => {
       });
 
       // Dispatch real email to user's registered inbox
-      await sendOtpEmail({
+      const mailResult = await sendOtpEmail({
         to: cleanEmail,
         otp: regOtp,
         purpose: 'user_register',
         name: fullName
       });
 
+      if (!mailResult.success) {
+        return res.status(500).json({
+          ok: false,
+          error: `Failed to dispatch real-time OTP to ${cleanEmail}: ${mailResult.error || 'SMTP delivery failure'}. Check EMAIL_PASS in backend/.env.`
+        });
+      }
+
       return res.json({
         ok: true,
         requiresOtp: true,
-        message: `Verification OTP sent to ${cleanEmail}. Please check your inbox to complete registration.`,
-        otp: regOtp
+        email: cleanEmail,
+        purpose: 'user_register',
+        simulated: mailResult.simulated || false,
+        message: `Verification OTP dispatched to ${cleanEmail}. Please check your inbox to complete registration.`,
+        ...(mailResult.simulated ? { otp: regOtp } : {})
       });
     }
 
