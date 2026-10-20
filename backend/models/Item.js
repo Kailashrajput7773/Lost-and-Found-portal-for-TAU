@@ -78,7 +78,8 @@ class ItemWrapper {
 
   async save() {
     if (mongoose.connection.readyState === 1) {
-      return this.save();
+      const doc = new MongoItem(this);
+      return doc.save();
     }
     const items = readLocalItems();
     const existingIndex = items.findIndex(it => (it._id || it.id) === this._id);
@@ -161,7 +162,7 @@ class ItemWrapper {
 
   static async findByIdAndUpdate(id, update, options = {}) {
     if (mongoose.connection.readyState === 1) {
-      return MongoItem.findByIdAndUpdate(id, update, options);
+      return MongoItem.findByIdAndUpdate(id, update, { returnDocument: 'after', ...options });
     }
     const items = readLocalItems();
     const index = items.findIndex(it => (it._id || it.id) === id);

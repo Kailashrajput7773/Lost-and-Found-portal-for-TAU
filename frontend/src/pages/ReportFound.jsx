@@ -129,48 +129,56 @@ const ReportFound = ({ user }) => {
 
                 <form onSubmit={handleSubmit} className="form-grid">
                   <div className="field">
-                    <label className="field-label">Found Item Name *</label>
+                    <label htmlFor="found-item-name" className="field-label">Found Item Name *</label>
                     <input
+                      id="found-item-name"
                       type="text"
                       className="input"
                       placeholder="e.g., Apple AirPods Case, Scientific Calculator, Blue Water Bottle"
                       required
                       value={formData.name}
                       onChange={e => setFormData({...formData, name: e.target.value})}
+                      style={{ minHeight: '44px' }}
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '16px' }}>
                     <div className="field">
-                      <label className="field-label">Your Contact (Phone / Email) *</label>
+                      <label htmlFor="found-contact" className="field-label">Your Contact (Phone / Email) *</label>
                       <input
+                        id="found-contact"
                         type="text"
                         className="input"
                         placeholder="e.g., 9876543210 or student@apollo.edu.in"
                         required
                         value={formData.contact}
                         onChange={e => setFormData({...formData, contact: e.target.value})}
+                        style={{ minHeight: '44px' }}
                       />
                     </div>
                     <div className="field">
-                      <label className="field-label">Date Found *</label>
+                      <label htmlFor="found-date" className="field-label">Date Found *</label>
                       <input
+                        id="found-date"
                         type="date"
                         className="input"
                         required
                         value={formData.date}
                         onChange={e => setFormData({...formData, date: e.target.value})}
+                        style={{ minHeight: '44px' }}
                       />
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '16px' }}>
                     <div className="field">
-                      <label className="field-label">Category *</label>
+                      <label htmlFor="found-category" className="field-label">Category *</label>
                       <select
+                        id="found-category"
                         className="select"
                         value={formData.category}
                         onChange={e => setFormData({...formData, category: e.target.value})}
+                        style={{ minHeight: '44px' }}
                       >
                         <option>Electronics</option>
                         <option>ID/Wallet</option>
@@ -181,11 +189,13 @@ const ReportFound = ({ user }) => {
                       </select>
                     </div>
                     <div className="field">
-                      <label className="field-label">Location Picked Up *</label>
+                      <label htmlFor="found-location" className="field-label">Location Picked Up *</label>
                       <select
+                        id="found-location"
                         className="select"
                         value={formData.location}
                         onChange={e => setFormData({...formData, location: e.target.value})}
+                        style={{ minHeight: '44px' }}
                       >
                         {CAMPUS_LOCATIONS.map(loc => (
                           <option key={loc} value={loc}>{loc}</option>
@@ -195,8 +205,9 @@ const ReportFound = ({ user }) => {
                   </div>
 
                   <div className="field">
-                    <label className="field-label">Description & Safe Deposit Note *</label>
+                    <label htmlFor="found-desc" className="field-label">Description & Safe Deposit Note *</label>
                     <textarea
+                      id="found-desc"
                       className="textarea"
                       placeholder="Where was it picked up? Where is it currently kept (e.g. Hostels, Library Desk, or with you)?"
                       required
@@ -207,15 +218,17 @@ const ReportFound = ({ user }) => {
 
                   {/* Anti-Fraud / Ownership Challenge Field */}
                   <div className="field" style={{ background: 'rgba(13, 148, 136, 0.05)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(13, 148, 136, 0.2)' }}>
-                    <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)' }}>
+                    <label htmlFor="found-secret-question" className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)' }}>
                       <ShieldCheck size={18} /> Secret Verification Question (Optional - Prevents False Claims)
                     </label>
                     <input
+                      id="found-secret-question"
                       type="text"
                       className="input"
                       placeholder="e.g., What sticker is on the back? / What keychain is attached?"
                       value={formData.question}
                       onChange={e => setFormData({...formData, question: e.target.value})}
+                      style={{ minHeight: '44px' }}
                     />
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
                       Claimants will be prompted to answer this question to prove ownership before claiming valuable items.
@@ -224,17 +237,18 @@ const ReportFound = ({ user }) => {
 
                   {/* Photo Upload with Camera & Preview */}
                   <div className="field">
-                    <label className="field-label">Upload Item Photo (Optional)</label>
+                    <label id="found-photo-label" className="field-label">Upload Item Photo (Optional)</label>
                     {imagePreview ? (
                       <div style={{ position: 'relative', display: 'inline-block', marginTop: '6px' }}>
                         <img
                           src={imagePreview}
-                          alt="Preview"
+                          alt="Preview of reported found item"
                           style={{ width: '140px', height: '140px', objectFit: 'cover', borderRadius: '12px', border: '2px solid var(--primary)' }}
                         />
                         <button
                           type="button"
                           onClick={removeImage}
+                          aria-label="Remove uploaded image"
                           style={{
                             position: 'absolute',
                             top: '-8px',
@@ -258,6 +272,7 @@ const ReportFound = ({ user }) => {
                     ) : (
                       <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <label
+                          htmlFor="found-photo-upload"
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -268,15 +283,18 @@ const ReportFound = ({ user }) => {
                             border: '1px solid var(--border-color)',
                             cursor: 'pointer',
                             fontSize: '13.5px',
-                            fontWeight: 600
+                            fontWeight: 600,
+                            minHeight: '44px'
                           }}
                         >
                           <Camera size={18} color="var(--primary)" /> Take Photo / Select Image
                           <input
+                            id="found-photo-upload"
                             type="file"
                             accept="image/*"
                             capture="environment"
                             onChange={handleImageChange}
+                            aria-labelledby="found-photo-label"
                             style={{ display: 'none' }}
                           />
                         </label>
@@ -287,7 +305,7 @@ const ReportFound = ({ user }) => {
                     )}
                   </div>
 
-                  <button type="submit" className="btn-submit" disabled={submitting}>
+                  <button type="submit" className="btn-submit" disabled={submitting} style={{ minHeight: '44px' }}>
                     {submitting ? 'Submitting Report...' : 'Publish Found Item Report'}
                   </button>
                 </form>
