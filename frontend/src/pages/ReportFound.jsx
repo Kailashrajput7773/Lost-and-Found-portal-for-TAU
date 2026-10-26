@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Camera, X, ShieldCheck, Sparkles } from 'lucide-react';
+import { Camera, X, ShieldCheck, Sparkles, Building, CheckCircle2 } from 'lucide-react';
+import { useToast } from '../components/Toast';
 
 const CAMPUS_LOCATIONS = [
   "Central Library (Floors 1-2)",
@@ -21,6 +22,7 @@ const CAMPUS_LOCATIONS = [
 
 const ReportFound = ({ user }) => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [formData, setFormData] = useState({
     name: '',
     contact: user?.phone || user?.email || '',
@@ -29,7 +31,10 @@ const ReportFound = ({ user }) => {
     location: CAMPUS_LOCATIONS[0],
     date: new Date().toISOString().split('T')[0],
     type: 'found',
-    question: '' // Ownership verification challenge
+    question: '', // Ownership verification challenge
+    custodyHandedOver: false,
+    custodyLocation: 'Central Library Front Desk',
+    custodyReceiptNo: ''
   });
 
   const [image, setImage] = useState(null);
@@ -41,7 +46,7 @@ const ReportFound = ({ user }) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert("Image exceeds 10MB limit. Please choose a smaller file.");
+        toast.error("Image exceeds 10MB limit. Please choose a smaller file.");
         return;
       }
       setImage(file);
@@ -68,9 +73,11 @@ const ReportFound = ({ user }) => {
       const res = await api.post('/api/items', data);
       if (res.data.ok) {
         setSubmissionSuccess(res.data.item);
+        toast.success("Found item published live to Apollo University catalog!");
       }
     } catch (error) {
-      alert(error.response?.data?.error || "Error reporting found item");
+      const errMsg = error.response?.data?.error || "Error reporting found item";
+      toast.error(errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -233,6 +240,62 @@ const ReportFound = ({ user }) => {
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
                       Claimants will be prompted to answer this question to prove ownership before claiming valuable items.
                     </span>
+                  </div>
+
+                  {/* Official Campus Custody Handover */}
+                  <div className="field custody-field-card" style={{ background: formData.custodyHandedOver ? 'rgba(79, 70, 229, 0.05)' : 'var(--bg-muted)', padding: '18px', borderRadius: '12px', border: formData.custodyHandedOver ? '1.5px solid var(--primary)' : '1px solid var(--border-subtle)', transition: 'all 0.2s ease' }}>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer', margin: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.custodyHandedOver}
+                        onChange={e => setFormData({ ...formData, custodyHandedOver: e.target.checked })}
+                        style={{ width: '18px', height: '18px', marginTop: '3px', accentColor: 'var(--primary)' }}
+                      />
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: 'var(--text-main)', fontSize: '14.5px' }}>
+                          <Building size={17} color="var(--primary)" /> Deposited with Official Campus Custody
+                        </div>
+                        <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: '1.4' }}>
+                          Check this if you have handed this item over to the Central Library front desk, campus security gate, or student affairs office so the owner knows exactly where to retrieve it safely.
+                        </div>
+                      </div>
+                    </label>
+
+                    {formData.custodyHandedOver && (
+                      <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed var(--border-subtle)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '14px' }}>
+                        <div>
+                          <label htmlFor="found-custody-location" className="field-label" style={{ fontSize: '13px' }}>Custody Department / Desk *</label>
+                          <select
+                            id="found-custody-location"
+                            className="select"
+                            value={formData.custodyLocation}
+                            onChange={e => setFormData({ ...formData, custodyLocation: e.target.value })}
+                            style={{ minHeight: '42px', fontSize: '13.5px' }}
+                          >
+                            <option>Central Library Front Desk</option>
+                            <option>Main Gate Security Office (Gate 1)</option>
+                            <option>Student Affairs & Welfare Office</option>
+                            <option>Boys Hostel Warden Office</option>
+                            <option>Girls Hostel Warden Office</option>
+                            <option>Sports Complex Control Desk</option>
+                            <option>Academic Block A Information Desk</option>
+                            <option>Other Campus Office</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label htmlFor="found-custody-receipt" className="field-label" style={{ fontSize: '13px' }}>Custody Token / Receipt # (Optional)</label>
+                          <input
+                            id="found-custody-receipt"
+                            type="text"
+                            className="input"
+                            placeholder="e.g., LIB-2026-442"
+                            value={formData.custodyReceiptNo}
+                            onChange={e => setFormData({ ...formData, custodyReceiptNo: e.target.value })}
+                            style={{ minHeight: '42px', fontSize: '13.5px' }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Photo Upload with Camera & Preview */}

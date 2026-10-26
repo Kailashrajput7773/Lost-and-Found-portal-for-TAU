@@ -4,9 +4,10 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const os = require('os');
 const isVercel = !!process.env.VERCEL;
+const SEED_FILE = path.join(__dirname, '..', 'data', 'items.json');
 const DATA_FILE = isVercel
   ? path.join(os.tmpdir(), 'items.json')
-  : path.join(__dirname, '..', 'data', 'items.json');
+  : SEED_FILE;
 
 const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -21,6 +22,9 @@ const itemSchema = new mongoose.Schema({
   type: { type: String, enum: ['lost', 'found'], required: true },
   status: { type: String, enum: ['active', 'resolved'], default: 'active' },
   question: { type: String, default: "" },
+  custodyHandedOver: { type: Boolean, default: false },
+  custodyLocation: { type: String, default: "" },
+  custodyReceiptNo: { type: String, default: "" },
   claimedBy: { type: String, default: "" },
   claimSubmissions: { type: Array, default: [] },
   createdAt: { type: Date, default: Date.now }
@@ -32,8 +36,16 @@ function readLocalItems() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
       fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-      fs.writeFileSync(DATA_FILE, '[]', 'utf8');
-      return [];
+      let seedData = '[]';
+      if (fs.existsSync(SEED_FILE)) {
+        try {
+          seedData = fs.readFileSync(SEED_FILE, 'utf8') || '[]';
+        } catch (readErr) {
+          console.warn("Notice: could not read SEED_FILE:", readErr.message);
+        }
+      }
+      fs.writeFileSync(DATA_FILE, seedData, 'utf8');
+      return JSON.parse(seedData || '[]');
     }
     const data = fs.readFileSync(DATA_FILE, 'utf8');
     return JSON.parse(data || '[]');
@@ -71,6 +83,9 @@ class ItemWrapper {
     this.type = data.type || "lost";
     this.status = data.status || "active";
     this.question = data.question || "";
+    this.custodyHandedOver = Boolean(data.custodyHandedOver);
+    this.custodyLocation = data.custodyLocation || "";
+    this.custodyReceiptNo = data.custodyReceiptNo || "";
     this.claimedBy = data.claimedBy || "";
     this.claimSubmissions = Array.isArray(data.claimSubmissions) ? data.claimSubmissions : [];
     this.createdAt = data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString();
@@ -123,6 +138,9 @@ class ItemWrapper {
       ...item,
       status: item.status || 'active',
       question: item.question || '',
+      custodyHandedOver: Boolean(item.custodyHandedOver),
+      custodyLocation: item.custodyLocation || '',
+      custodyReceiptNo: item.custodyReceiptNo || '',
       claimedBy: item.claimedBy || '',
       claimSubmissions: item.claimSubmissions || [],
       _id: item._id || item.id,

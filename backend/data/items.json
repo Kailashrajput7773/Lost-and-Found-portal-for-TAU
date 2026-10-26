@@ -14,6 +14,9 @@
     "type": "found",
     "status": "active",
     "question": "What is engraved or what sticker is on the back of the case?",
+    "custodyHandedOver": true,
+    "custodyLocation": "Central Library Front Desk",
+    "custodyReceiptNo": "LIB-2026-084",
     "claimedBy": "",
     "claimSubmissions": [
       {

@@ -23,8 +23,14 @@ import {
   Watch,
   Package,
   HelpCircle,
-  ChevronRight
+  ChevronRight,
+  Printer,
+  Maximize2,
+  Building
 } from 'lucide-react';
+import NoticeboardFlyerModal from '../components/NoticeboardFlyerModal';
+import ImageLightboxModal from '../components/ImageLightboxModal';
+import { useToast } from '../components/Toast';
 
 const CATEGORY_ICONS = {
   'Electronics': Laptop,
@@ -41,11 +47,14 @@ const CATEGORY_ICONS = {
 const ItemDetails = ({ user }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showFlyerModal, setShowFlyerModal] = useState(false);
+  const [showLightboxModal, setShowLightboxModal] = useState(false);
 
   // Claim Submission Modal State
   const [showClaimModal, setShowClaimModal] = useState(false);
@@ -76,11 +85,13 @@ const ItemDetails = ({ user }) => {
       if (e.key === 'Escape') {
         if (showClaimModal) setShowClaimModal(false);
         if (reviewingClaim) setReviewingClaim(null);
+        if (showFlyerModal) setShowFlyerModal(false);
+        if (showLightboxModal) setShowLightboxModal(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showClaimModal, reviewingClaim]);
+  }, [showClaimModal, reviewingClaim, showFlyerModal, showLightboxModal]);
 
   // --------------------------------------------------------------------------
   // 1. Fetch Item Details
@@ -379,7 +390,22 @@ const ItemDetails = ({ user }) => {
             <ArrowLeft size={16} /> Back to Catalog
           </button>
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setShowFlyerModal(true)}
+              className="btn btn-secondary"
+              style={{
+                fontSize: '13px',
+                padding: '8px 14px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title="Generate printable campus noticeboard flyer"
+            >
+              <Printer size={15} color="var(--primary)" /> Noticeboard Flyer
+            </button>
+
             <button
               onClick={handleShare}
               className="btn btn-secondary"
@@ -454,16 +480,35 @@ const ItemDetails = ({ user }) => {
               position: 'relative'
             }}>
               {item.img ? (
-                <img
-                  src={getMediaUrl(item.img)}
-                  alt={item.name}
-                  style={{
-                    width: '100%',
-                    height: '380px',
-                    objectFit: 'cover',
-                    display: 'block'
-                  }}
-                />
+                <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setShowLightboxModal(true)}>
+                  <img
+                    src={getMediaUrl(item.img)}
+                    alt={item.name}
+                    style={{
+                      width: '100%',
+                      height: '380px',
+                      objectFit: 'cover',
+                      display: 'block'
+                    }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '12px',
+                    right: '12px',
+                    background: 'rgba(17, 24, 39, 0.75)',
+                    backdropFilter: 'blur(6px)',
+                    color: '#ffffff',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <Maximize2 size={13} /> Click to Zoom
+                  </div>
+                </div>
               ) : (
                 <div style={{
                   height: '360px',
@@ -511,6 +556,50 @@ const ItemDetails = ({ user }) => {
                 )}
               </div>
             </div>
+
+            {/* Campus Custody Handover Card */}
+            {item.custodyHandedOver && (
+              <div style={{
+                marginTop: '20px',
+                background: 'rgba(13, 148, 136, 0.08)',
+                border: '1.5px solid rgba(13, 148, 136, 0.3)',
+                borderRadius: '12px',
+                padding: '16px',
+                display: 'flex',
+                gap: '14px',
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: '#0d9488',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <Building size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Verified Campus Custody
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
+                    Deposited at {item.custodyLocation || 'Central Library Front Desk'}
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.5 }}>
+                    The finder has officially handed this item over to campus custody. You can retrieve it during campus office hours with your Student ID Card.
+                    {item.custodyReceiptNo && (
+                      <div style={{ marginTop: '6px', fontWeight: 600, color: 'var(--text-main)' }}>
+                        Deposit Reference Token: <span style={{ background: 'var(--bg-card)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontFamily: 'monospace' }}>#{item.custodyReceiptNo}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Verification Challenge Card (Anti-Fraud) */}
             {item.question && (
@@ -1210,6 +1299,23 @@ const ItemDetails = ({ user }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Noticeboard Printable Flyer Modal */}
+      {showFlyerModal && (
+        <NoticeboardFlyerModal
+          item={item}
+          onClose={() => setShowFlyerModal(false)}
+        />
+      )}
+
+      {/* Image Click-to-Zoom Lightbox Modal */}
+      {showLightboxModal && item.img && (
+        <ImageLightboxModal
+          imageUrl={getMediaUrl(item.img)}
+          altText={item.name}
+          onClose={() => setShowLightboxModal(false)}
+        />
       )}
 
     </div>

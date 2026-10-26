@@ -19,7 +19,8 @@ import {
   Lock,
   Eye,
   Users,
-  QrCode
+  QrCode,
+  Building
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -401,29 +402,26 @@ const Home = () => {
 
           {/* Loading State */}
           {loadingItems && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '20px' }}>
               {[1, 2, 3].map((n) => (
                 <div
                   key={n}
                   style={{
-                    background: 'var(--bg-page)',
+                    background: 'var(--bg-card)',
                     borderRadius: 'var(--radius-lg)',
                     border: '1px solid var(--border-color)',
-                    padding: '20px',
-                    height: '240px',
+                    overflow: 'hidden',
+                    height: '280px',
                     display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between'
+                    flexDirection: 'column'
                   }}
                 >
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'var(--border-subtle)' }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ height: '14px', width: '60%', background: 'var(--border-subtle)', borderRadius: '4px', marginBottom: '6px' }} />
-                      <div style={{ height: '10px', width: '40%', background: 'var(--border-subtle)', borderRadius: '4px' }} />
-                    </div>
+                  <div className="skeleton-shimmer" style={{ height: '160px', width: '100%' }} />
+                  <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                    <div className="skeleton-shimmer" style={{ height: '16px', width: '65%', borderRadius: '4px' }} />
+                    <div className="skeleton-shimmer" style={{ height: '12px', width: '85%', borderRadius: '4px' }} />
+                    <div className="skeleton-shimmer" style={{ height: '12px', width: '40%', borderRadius: '4px', marginTop: 'auto' }} />
                   </div>
-                  <div style={{ height: '36px', background: 'var(--border-subtle)', borderRadius: '6px' }} />
                 </div>
               ))}
             </div>
@@ -630,6 +628,14 @@ const Home = () => {
                           <Calendar size={13} style={{ flexShrink: 0 }} />
                           <span>{item.date || 'Recent'}</span>
                         </div>
+                        {item.custodyHandedOver && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: '#0f766e', fontWeight: 600, marginTop: '2px' }}>
+                            <Building size={12} style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              Safe Custody: {item.custodyLocation ? item.custodyLocation.split('(')[0].trim() : 'Library Desk'}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Link to Dedicated Item Details */}
