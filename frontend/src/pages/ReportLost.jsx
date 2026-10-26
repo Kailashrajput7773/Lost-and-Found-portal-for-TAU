@@ -34,6 +34,8 @@ const ReportLost = ({ user }) => {
     type: 'lost'
   });
 
+  const [customCategory, setCustomCategory] = useState('');
+  const [customLocation, setCustomLocation] = useState('');
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -61,9 +63,20 @@ const ReportLost = ({ user }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const finalCategory = formData.category === 'Other' && customCategory.trim()
+      ? customCategory.trim()
+      : formData.category;
+    const finalLocation = formData.location === 'Other Campus Location' && customLocation.trim()
+      ? customLocation.trim()
+      : formData.location;
+
     setSubmitting(true);
     const data = new FormData();
-    Object.keys(formData).forEach(key => data.append(key, formData[key]));
+    Object.keys(formData).forEach(key => {
+      if (key === 'category') data.append('category', finalCategory);
+      else if (key === 'location') data.append('location', finalLocation);
+      else data.append(key, formData[key]);
+    });
     if (image) data.append('image', image);
 
     try {
@@ -192,6 +205,20 @@ const ReportLost = ({ user }) => {
                         <option>Accessories</option>
                         <option>Other</option>
                       </select>
+                      {formData.category === 'Other' && (
+                        <div style={{ marginTop: '8px' }}>
+                          <input
+                            id="lost-custom-category"
+                            type="text"
+                            className="input"
+                            placeholder="Specify custom category (e.g., Lab Equipment, Umbrella, Musical Instrument)..."
+                            required
+                            value={customCategory}
+                            onChange={e => setCustomCategory(e.target.value)}
+                            style={{ minHeight: '42px', fontSize: '13.5px' }}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="field">
                       <label htmlFor="lost-date" className="field-label">Date Lost *</label>
@@ -220,6 +247,20 @@ const ReportLost = ({ user }) => {
                         <option key={loc} value={loc}>{loc}</option>
                       ))}
                     </select>
+                    {formData.location === 'Other Campus Location' && (
+                      <div style={{ marginTop: '8px' }}>
+                        <input
+                          id="lost-custom-location"
+                          type="text"
+                          className="input"
+                          placeholder="Type specific building, lab, classroom, floor or campus spot..."
+                          required
+                          value={customLocation}
+                          onChange={e => setCustomLocation(e.target.value)}
+                          style={{ minHeight: '42px', fontSize: '13.5px' }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="field">

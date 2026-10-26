@@ -4,6 +4,7 @@ import { QrCode, Printer, Download, Sparkles, Shield, CheckCircle2, ArrowRight }
 
 const SafeTag = ({ user }) => {
   const [itemName, setItemName] = useState('MacBook Pro / Laptop');
+  const [customItemName, setCustomItemName] = useState('');
   const [ownerName, setOwnerName] = useState(user?.name || user?.fullName || '');
   const [rollNumber, setRollNumber] = useState(user?.roll || '');
   const [contact, setContact] = useState(user?.phone || user?.email || '');
@@ -11,9 +12,13 @@ const SafeTag = ({ user }) => {
   const [qrUrl, setQrUrl] = useState('');
   const printRef = useRef(null);
 
+  const effectiveItemName = (itemName === 'Other' && customItemName.trim())
+    ? customItemName.trim()
+    : (itemName === 'Other' ? 'Custom Belonging' : itemName);
+
   useEffect(() => {
     // Generate QR code encoding return instructions or contact
-    const payload = `THE APOLLO UNIVERSITY SAFETAG\nItem: ${itemName}\nOwner: ${ownerName || 'TAU Student'}\nRoll: ${rollNumber || 'N/A'}\nContact: ${contact}\nInstructions: ${returnNote}\nPortal: ${window.location.origin}/report-found`;
+    const payload = `THE APOLLO UNIVERSITY SAFETAG\nItem: ${effectiveItemName}\nOwner: ${ownerName || 'TAU Student'}\nRoll: ${rollNumber || 'N/A'}\nContact: ${contact}\nInstructions: ${returnNote}\nPortal: ${window.location.origin}/report-found`;
 
     QRCode.toDataURL(payload, {
       width: 260,
@@ -25,7 +30,7 @@ const SafeTag = ({ user }) => {
     })
       .then(url => setQrUrl(url))
       .catch(err => console.error("Error generating QR:", err));
-  }, [itemName, ownerName, rollNumber, contact, returnNote]);
+  }, [effectiveItemName, ownerName, rollNumber, contact, returnNote]);
 
   const handlePrint = () => {
     window.print();
@@ -35,7 +40,7 @@ const SafeTag = ({ user }) => {
     if (!qrUrl) return;
     const a = document.createElement('a');
     a.href = qrUrl;
-    a.download = `TAU-SafeTag-${itemName.replace(/\s+/g, '_')}.png`;
+    a.download = `TAU-SafeTag-${effectiveItemName.replace(/[^a-zA-Z0-9_-]/g, '_')}.png`;
     a.click();
   };
 
@@ -79,7 +84,22 @@ const SafeTag = ({ user }) => {
                   <option>Course Notes / Binder</option>
                   <option>Insulated Water Bottle</option>
                   <option>Sports Equipment</option>
+                  <option value="Other">Other Valuable Item...</option>
                 </select>
+                {itemName === 'Other' && (
+                  <div style={{ marginTop: '8px' }}>
+                    <input
+                      id="safetag-custom-item-name"
+                      type="text"
+                      className="input"
+                      placeholder="Type your valuable item (e.g. Casio Watch, Lab Drafter, DSLR Camera)..."
+                      required
+                      value={customItemName}
+                      onChange={e => setCustomItemName(e.target.value)}
+                      style={{ minHeight: '44px' }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '12px' }}>
@@ -205,7 +225,7 @@ const SafeTag = ({ user }) => {
               {/* Tag Details */}
               <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
                 <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)', marginBottom: '4px' }}>
-                  {itemName}
+                  {effectiveItemName}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
                   {ownerName ? `Belongs to: ${ownerName}` : 'Apollo University Campus Belonging'} {rollNumber && `(${rollNumber})`}

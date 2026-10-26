@@ -116,6 +116,7 @@ const Listings = ({ user }) => {
   // Allegation Reporting Modal State
   const [reportingItem, setReportingItem] = useState(null);
   const [reportReason, setReportReason] = useState('Fake or Fraudulent Listing');
+  const [customReportReason, setCustomReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
   const [reportSuccess, setReportSuccess] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
@@ -449,6 +450,7 @@ const Listings = ({ user }) => {
     if (e) e.stopPropagation();
     setReportingItem(item);
     setReportReason('Fake or Fraudulent Listing');
+    setCustomReportReason('');
     setReportDetails('');
     setReportSuccess('');
   };
@@ -457,13 +459,16 @@ const Listings = ({ user }) => {
     e.preventDefault();
     if (!reportingItem) return;
     setSubmittingReport(true);
+    const finalReason = reportReason === 'Other Guideline Violation' && customReportReason.trim()
+      ? customReportReason.trim()
+      : reportReason;
     try {
       const res = await api.post('/api/auth/report-user', {
         reportedUserEmail: reportingItem.contact,
         reportedUserName: reportingItem.name,
         reportedByEmail: user?.email || 'student.reporter@apollo.edu.in',
         reportedByName: user?.name || user?.fullName || 'Campus Member',
-        reason: reportReason,
+        reason: finalReason,
         details: reportDetails,
         itemId: reportingItem._id || reportingItem.id,
         itemName: reportingItem.name
@@ -1945,6 +1950,30 @@ const Listings = ({ user }) => {
                       <option>Item Already Claimed / Solved</option>
                       <option>Other Guideline Violation</option>
                     </select>
+                    {reportReason === 'Other Guideline Violation' && (
+                      <div style={{ marginTop: '8px' }}>
+                        <input
+                          id="report-custom-reason"
+                          type="text"
+                          required
+                          placeholder="Specify the guideline violation..."
+                          value={customReportReason}
+                          onChange={(e) => setCustomReportReason(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '9px 12px',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-color)',
+                            background: 'var(--bg-input)',
+                            color: 'var(--text-main)',
+                            fontSize: '13px',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                            minHeight: '40px'
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div>
