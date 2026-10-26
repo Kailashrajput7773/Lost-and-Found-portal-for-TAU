@@ -37,6 +37,9 @@ const ReportFound = ({ user }) => {
     custodyReceiptNo: ''
   });
 
+  const [customCategory, setCustomCategory] = useState('');
+  const [customLocation, setCustomLocation] = useState('');
+  const [customCustodyLocation, setCustomCustodyLocation] = useState('');
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -64,9 +67,24 @@ const ReportFound = ({ user }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const finalCategory = formData.category === 'Other' && customCategory.trim()
+      ? customCategory.trim()
+      : formData.category;
+    const finalLocation = formData.location === 'Other Campus Location' && customLocation.trim()
+      ? customLocation.trim()
+      : formData.location;
+    const finalCustodyLocation = formData.custodyLocation === 'Other Campus Office' && customCustodyLocation.trim()
+      ? customCustodyLocation.trim()
+      : formData.custodyLocation;
+
     setSubmitting(true);
     const data = new FormData();
-    Object.keys(formData).forEach(key => data.append(key, formData[key]));
+    Object.keys(formData).forEach(key => {
+      if (key === 'category') data.append('category', finalCategory);
+      else if (key === 'location') data.append('location', finalLocation);
+      else if (key === 'custodyLocation') data.append('custodyLocation', finalCustodyLocation);
+      else data.append(key, formData[key]);
+    });
     if (image) data.append('image', image);
 
     try {
@@ -194,6 +212,20 @@ const ReportFound = ({ user }) => {
                         <option>Accessories</option>
                         <option>Other</option>
                       </select>
+                      {formData.category === 'Other' && (
+                        <div style={{ marginTop: '8px' }}>
+                          <input
+                            id="found-custom-category"
+                            type="text"
+                            className="input"
+                            placeholder="Specify custom category (e.g., Lab Equipment, Umbrella, Musical Instrument)..."
+                            required
+                            value={customCategory}
+                            onChange={e => setCustomCategory(e.target.value)}
+                            style={{ minHeight: '42px', fontSize: '13.5px' }}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="field">
                       <label htmlFor="found-location" className="field-label">Location Picked Up *</label>
@@ -208,6 +240,20 @@ const ReportFound = ({ user }) => {
                           <option key={loc} value={loc}>{loc}</option>
                         ))}
                       </select>
+                      {formData.location === 'Other Campus Location' && (
+                        <div style={{ marginTop: '8px' }}>
+                          <input
+                            id="found-custom-location"
+                            type="text"
+                            className="input"
+                            placeholder="Type specific building, lab, classroom, floor or campus spot..."
+                            required
+                            value={customLocation}
+                            onChange={e => setCustomLocation(e.target.value)}
+                            style={{ minHeight: '42px', fontSize: '13.5px' }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -281,6 +327,20 @@ const ReportFound = ({ user }) => {
                             <option>Academic Block A Information Desk</option>
                             <option>Other Campus Office</option>
                           </select>
+                          {formData.custodyLocation === 'Other Campus Office' && (
+                            <div style={{ marginTop: '8px' }}>
+                              <input
+                                id="found-custom-custody-location"
+                                type="text"
+                                className="input"
+                                placeholder="Specify exact campus office or department desk..."
+                                required
+                                value={customCustodyLocation}
+                                onChange={e => setCustomCustodyLocation(e.target.value)}
+                                style={{ minHeight: '42px', fontSize: '13.5px' }}
+                              />
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label htmlFor="found-custody-receipt" className="field-label" style={{ fontSize: '13px' }}>Custody Token / Receipt # (Optional)</label>
