@@ -514,7 +514,7 @@ router.get('/:id/matches', async (req, res) => {
 // 4. Submit new item (with Cloudinary or local upload + verification question support)
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name, roll, contact, category, desc, location, date, type, question } = req.body;
+    const { name, roll, contact, category, desc, location, date, type, question, custodyHandedOver, custodyLocation, custodyReceiptNo } = req.body;
     if (!name || !contact || !category || !desc || !location || !date || !type) {
       return res.status(400).json({ error: "Missing required fields" });
     }
@@ -560,6 +560,8 @@ router.post('/', upload.single('image'), async (req, res) => {
       }
     }
 
+    const isCustody = custodyHandedOver === 'true' || custodyHandedOver === true;
+
     const newItem = new Item({
       name,
       roll: roll || "",
@@ -570,6 +572,9 @@ router.post('/', upload.single('image'), async (req, res) => {
       date,
       type,
       question: question || "",
+      custodyHandedOver: isCustody,
+      custodyLocation: isCustody ? (custodyLocation || location || "") : "",
+      custodyReceiptNo: isCustody ? (custodyReceiptNo || "") : "",
       img: imgUrl,
       status: 'active',
       approved: true
@@ -825,13 +830,16 @@ router.patch('/:id/edit', async (req, res) => {
       });
     }
 
-    const { name, desc, location, category, question } = req.body;
+    const { name, desc, location, category, question, custodyHandedOver, custodyLocation, custodyReceiptNo } = req.body;
     const updates = {};
     if (name) updates.name = name.trim();
     if (desc) updates.desc = desc.trim();
     if (location) updates.location = location;
     if (category) updates.category = category;
     if (question !== undefined) updates.question = question.trim();
+    if (custodyHandedOver !== undefined) updates.custodyHandedOver = Boolean(custodyHandedOver);
+    if (custodyLocation !== undefined) updates.custodyLocation = custodyLocation.trim();
+    if (custodyReceiptNo !== undefined) updates.custodyReceiptNo = custodyReceiptNo.trim();
 
     const updated = await Item.findByIdAndUpdate(req.params.id, updates, { new: true });
     return res.json({

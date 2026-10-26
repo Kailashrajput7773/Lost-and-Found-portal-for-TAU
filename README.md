@@ -25,6 +25,16 @@ A full-stack, responsive web application for **The Apollo University** campus co
    - Supports capturing images directly from smartphone cameras (`capture="environment"`) with live previews and removal.
 8. **🛡️ Role-Based Authentication & Moderation Console**:
    - 2FA OTP verification for administrators, user suspension, allegation filing, and live analytics.
+9. **🖨️ Campus Noticeboard A4 Flyer Generator**:
+   - 1-click printable bulletin poster with Apollo University branding, live item QR code, and tear-off contact slips.
+10. **🏛️ Official Campus Custody Tracking**:
+    - Handover verification for items deposited at Central Library Desk, Security Gate 1, or Student Affairs with reference receipt tokens.
+11. **⚡ Shimmer Skeleton Screen Loaders**:
+    - Animated skeleton screens eliminating layout shifts and delivering fluid perceived performance.
+12. **🔍 Interactive Image Lightbox Zoom**:
+    - High-resolution modal with zoom controls and rotation for inspecting distinctive markings and serial numbers.
+13. **🔔 Modern Floating Toast Notifications**:
+    - Non-blocking glassmorphic notification toasts replacing intrusive native browser alerts.
 
 ---
 

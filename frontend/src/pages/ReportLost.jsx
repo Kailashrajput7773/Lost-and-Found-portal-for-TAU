@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Upload, Camera, X, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { useToast } from '../components/Toast';
 
 const CAMPUS_LOCATIONS = [
   "Central Library (Floors 1-2)",
@@ -21,6 +22,7 @@ const CAMPUS_LOCATIONS = [
 
 const ReportLost = ({ user }) => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [formData, setFormData] = useState({
     name: '',
     roll: user?.roll || '',
@@ -41,7 +43,7 @@ const ReportLost = ({ user }) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert("Image exceeds 10MB limit. Please choose a smaller file.");
+        toast.error("Image exceeds 10MB limit. Please choose a smaller file.");
         return;
       }
       setImage(file);
@@ -68,9 +70,11 @@ const ReportLost = ({ user }) => {
       const res = await api.post('/api/items', data);
       if (res.data.ok) {
         setSubmissionSuccess(res.data.item);
+        toast.success("Lost item report broadcast to Apollo campus catalog!");
       }
     } catch (error) {
-      alert(error.response?.data?.error || "Error reporting lost item");
+      const errMsg = error.response?.data?.error || "Error reporting lost item";
+      toast.error(errMsg);
     } finally {
       setSubmitting(false);
     }

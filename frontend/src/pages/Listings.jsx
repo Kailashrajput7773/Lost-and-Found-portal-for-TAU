@@ -22,8 +22,12 @@ import {
   Key,
   BookOpen,
   Watch,
-  Package
+  Package,
+  Building,
+  Printer
 } from 'lucide-react';
+import { useToast } from '../components/Toast';
+import NoticeboardFlyerModal from '../components/NoticeboardFlyerModal';
 
 const CAMPUS_LOCATIONS = [
   "All Locations",
@@ -116,6 +120,10 @@ const Listings = ({ user }) => {
   const [reportSuccess, setReportSuccess] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
 
+  // Noticeboard Flyer Modal State
+  const [flyerItem, setFlyerItem] = useState(null);
+  const toast = useToast();
+
   // Close modals on Escape key press
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -124,11 +132,12 @@ const Listings = ({ user }) => {
         if (matchingItem) setMatchingItem(null);
         if (claimingItem) setClaimingItem(null);
         if (reportingItem) setReportingItem(null);
+        if (flyerItem) setFlyerItem(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedItem, matchingItem, claimingItem, reportingItem]);
+  }, [selectedItem, matchingItem, claimingItem, reportingItem, flyerItem]);
 
   // --------------------------------------------------------------------------
   // 1. Fetch single item for detail view
@@ -369,6 +378,7 @@ const Listings = ({ user }) => {
           spread: 70,
           origin: { y: 0.6 }
         });
+        toast.success('Item successfully marked as Reunited! 🎉');
         fetchItems();
         fetchStats();
         if (selectedItem && (selectedItem._id || selectedItem.id) === (item._id || item.id)) {
@@ -376,7 +386,7 @@ const Listings = ({ user }) => {
         }
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update item');
+      toast.error(err.response?.data?.error || 'Failed to update item');
     }
   };
 
@@ -386,6 +396,7 @@ const Listings = ({ user }) => {
     try {
       const res = await api.delete(`/api/items/${item._id || item.id}`);
       if (res.data?.ok) {
+        toast.success(`"${item.name}" deleted successfully.`);
         fetchItems();
         fetchStats();
         if (selectedItem && (selectedItem._id || selectedItem.id) === (item._id || item.id)) {
@@ -393,7 +404,7 @@ const Listings = ({ user }) => {
         }
       }
     } catch {
-      alert('Failed to delete item');
+      toast.error('Failed to delete item');
     }
   };
 
@@ -420,6 +431,7 @@ const Listings = ({ user }) => {
       });
       if (res.data?.ok) {
         setClaimSuccess(res.data.message);
+        toast.success('Verification claim submitted to reporter!');
         setRevealedContactId(claimingItem._id || claimingItem.id);
         setTimeout(() => {
           setClaimingItem(null);
@@ -427,7 +439,7 @@ const Listings = ({ user }) => {
         }, 2200);
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Error submitting claim');
+      toast.error(err.response?.data?.error || 'Error submitting claim');
     } finally {
       setSubmittingClaim(false);
     }
@@ -549,6 +561,46 @@ const Listings = ({ user }) => {
                 {tab.label}
               </button>
             ))}
+          </div>
+
+          {/* Popular Campus Hotspot Quick Filter Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px', marginTop: '12px' }}>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <MapPin size={13} color="var(--primary)" /> Hotspots:
+            </span>
+            {[
+              { label: 'All Hotspots', value: '' },
+              { label: '📚 Central Library', value: 'Central Library (Floors 1-2)' },
+              { label: '🏢 Block A', value: 'Main Academic Block A' },
+              { label: '🏢 Block B', value: 'Main Academic Block B' },
+              { label: '🍔 Cafeteria', value: 'Cafeteria & Student Food Court' },
+              { label: '🏀 Sports Arena', value: 'Sports Arena & Cricket Ground' },
+              { label: '🛏️ Boys Hostel', value: 'Boys Hostel (Blocks 1-3)' },
+              { label: '🛏️ Girls Hostel', value: 'Girls Hostel (Blocks 1-2)' }
+            ].map(spot => {
+              const isSelected = (!spot.value && !locationFilter) || locationFilter === spot.value;
+              return (
+                <button
+                  key={spot.label}
+                  type="button"
+                  onClick={() => setLocationFilter(spot.value)}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: 'var(--radius-pill)',
+                    fontSize: '12px',
+                    fontWeight: isSelected ? 700 : 500,
+                    border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                    background: isSelected ? 'var(--primary-subtle)' : 'var(--bg-card)',
+                    color: isSelected ? 'var(--primary)' : 'var(--text-body)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {spot.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -871,9 +923,9 @@ const Listings = ({ user }) => {
            4. DATA GRID STATES (Loading, Error, Empty, List)
            -------------------------------------------------------------------- */}
 
-        {/* Loading Skeletons */}
+        {/* Shimmer Loading Skeletons */}
         {loading && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '20px' }}>
             {[1, 2, 3, 4, 5, 6].map(n => (
               <div
                 key={n}
@@ -887,11 +939,11 @@ const Listings = ({ user }) => {
                   flexDirection: 'column'
                 }}
               >
-                <div style={{ height: '180px', background: 'var(--bg-muted)' }} />
-                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ height: '16px', width: '60%', background: 'var(--border-subtle)', borderRadius: '4px' }} />
-                  <div style={{ height: '12px', width: '90%', background: 'var(--border-subtle)', borderRadius: '4px' }} />
-                  <div style={{ height: '12px', width: '40%', background: 'var(--border-subtle)', borderRadius: '4px' }} />
+                <div className="skeleton-shimmer" style={{ height: '180px', width: '100%' }} />
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                  <div className="skeleton-shimmer" style={{ height: '16px', width: '60%', borderRadius: '4px' }} />
+                  <div className="skeleton-shimmer" style={{ height: '12px', width: '90%', borderRadius: '4px' }} />
+                  <div className="skeleton-shimmer" style={{ height: '12px', width: '40%', borderRadius: '4px', marginTop: 'auto' }} />
                 </div>
               </div>
             ))}
@@ -1150,6 +1202,15 @@ const Listings = ({ user }) => {
                           <Calendar size={13} style={{ flexShrink: 0 }} />
                           <span>{item.date || 'Recent'}</span>
                         </div>
+
+                        {item.custodyHandedOver && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px', color: '#0f766e', fontWeight: 600, marginTop: '2px' }}>
+                            <Building size={12} style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              Safe Custody: {item.custodyLocation ? item.custodyLocation.split('(')[0].trim() : 'Library Desk'}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Card Action Row */}
@@ -1160,6 +1221,28 @@ const Listings = ({ user }) => {
                           style={{ flex: 1, padding: '7px 12px', fontSize: '12.5px', justifyContent: 'center' }}
                         >
                           <Eye size={13} /> View Details
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFlyerItem(item);
+                          }}
+                          title="Generate printable noticeboard flyer (A4)"
+                          style={{
+                            padding: '7px 10px',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-color)',
+                            background: 'var(--bg-card)',
+                            color: 'var(--primary)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Printer size={14} />
                         </button>
 
                         {!isResolved && (
@@ -1918,6 +2001,14 @@ const Listings = ({ user }) => {
               )}
             </div>
           </div>
+        )}
+
+        {/* Noticeboard Printable Flyer Modal */}
+        {flyerItem && (
+          <NoticeboardFlyerModal
+            item={flyerItem}
+            onClose={() => setFlyerItem(null)}
+          />
         )}
 
       </div>

@@ -12,6 +12,7 @@ import SafeTag from './pages/SafeTag';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
 import UserDashboard from './pages/UserDashboard';
+import { ToastProvider } from './components/Toast';
 import './index.css';
 
 function App() {
@@ -69,27 +70,29 @@ function App() {
   };
 
   return (
-    <Router>
-      <Navbar theme={theme} toggleTheme={toggleTheme} user={user} setUser={setUser} />
-      <main id="main-content">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/report-lost" element={<ReportLost user={user} />} />
-          <Route path="/report-found" element={<ReportFound user={user} />} />
-          <Route path="/listings" element={<Listings user={user} />} />
-          <Route path="/items" element={<Listings user={user} />} />
-          <Route path="/items/:id" element={<ItemDetails user={user} />} />
-          <Route path="/item/:id" element={<ItemDetails user={user} />} />
-          <Route path="/safetag" element={<SafeTag user={user} />} />
-          <Route path="/admin" element={<Admin user={user} />} />
-          <Route path="/dashboard" element={<UserDashboard user={user} defaultTab="overview" />} />
-          <Route path="/my-reports" element={<UserDashboard user={user} defaultTab="reports" />} />
-          <Route path="/login" element={<Login setUser={setUser} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <Footer />
-    </Router>
+    <ToastProvider>
+      <Router>
+        <Navbar theme={theme} toggleTheme={toggleTheme} user={user} setUser={setUser} />
+        <main id="main-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/report-lost" element={<ReportLost user={user} />} />
+            <Route path="/report-found" element={<ReportFound user={user} />} />
+            <Route path="/listings" element={<Listings user={user} />} />
+            <Route path="/items" element={<Listings user={user} />} />
+            <Route path="/items/:id" element={<ItemDetails user={user} />} />
+            <Route path="/item/:id" element={<ItemDetails user={user} />} />
+            <Route path="/safetag" element={<SafeTag user={user} />} />
+            <Route path="/admin" element={<Admin user={user} />} />
+            <Route path="/dashboard" element={<UserDashboard user={user} defaultTab="overview" />} />
+            <Route path="/my-reports" element={<UserDashboard user={user} defaultTab="reports" />} />
+            <Route path="/login" element={<Login setUser={setUser} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <Footer />
+      </Router>
+    </ToastProvider>
   );
 }
 
