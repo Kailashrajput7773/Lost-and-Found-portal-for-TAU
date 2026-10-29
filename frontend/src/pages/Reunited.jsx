@@ -21,7 +21,11 @@ import {
   TrendingUp,
   Clock,
   ExternalLink,
-  X
+  X,
+  Copy,
+  Check,
+  ThumbsUp,
+  FileCheck
 } from 'lucide-react';
 import { useToast } from '../components/Toast';
 
@@ -72,9 +76,41 @@ const Reunited = ({ user }) => {
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [selectedReviewCategory, setSelectedReviewCategory] = useState('All');
 
-  // Modals
+  // Modals & Interactive States
   const [selectedCertificateItem, setSelectedCertificateItem] = useState(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedStarFilter, setSelectedStarFilter] = useState(null);
+  const [copiedReceipt, setCopiedReceipt] = useState(null);
+  const [helpfulVotes, setHelpfulVotes] = useState({
+    'rev-1': 4,
+    'rev-2': 7,
+    'rev-3': 5,
+    'rev-4': 3,
+    'rev-5': 6
+  });
+
+  const getInitials = (name) => {
+    if (!name) return 'TAU';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const copyReceipt = (code) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code);
+      setCopiedReceipt(code);
+      if (addToast) addToast('Receipt code copied to clipboard!', 'success');
+      setTimeout(() => setCopiedReceipt(null), 2500);
+    }
+  };
+
+  const toggleHelpful = (id) => {
+    setHelpfulVotes(prev => ({
+      ...prev,
+      [id]: (prev[id] || 0) + 1
+    }));
+  };
 
   // Review Form
   const [rating, setRating] = useState(5);
@@ -184,9 +220,10 @@ const Reunited = ({ user }) => {
     return true;
   });
 
-  // Filtered Reviews
+  // Filtered Reviews (with category + star filters)
   const filteredReviews = reviews.filter(rev => {
     if (selectedReviewCategory !== 'All' && rev.category !== selectedReviewCategory) return false;
+    if (selectedStarFilter !== null && Number(rev.rating || 5) !== selectedStarFilter) return false;
     return true;
   });
 
@@ -196,21 +233,23 @@ const Reunited = ({ user }) => {
       <section className="reunited-hero">
         <div className="container">
           <div className="reunited-hero-content">
-            <div className="badge-pill">
-              <Sparkles size={14} className="badge-icon-spin" />
-              <span>Hall of Reunited Belongings &amp; Community Voice</span>
+            <div className="reunited-radar-pill">
+              <span className="radar-dot" />
+              <span>Live Campus Handover Ledger • 100% Verified Restorations</span>
             </div>
+
             <h1 className="reunited-title">
-              Celebrating Restored Belongings &amp; Verified Handovers
+              Celebrating Restored Belongings &amp; <span className="reunited-title-highlight">Campus Voices</span>
             </h1>
+
             <p className="reunited-subtitle">
-              Every lost article reunited represents an honest student, a diligent campus desk, and a secure handover verification. Explore our recovery track record and authentic campus community reviews.
+              Every returned belonging represents an honest student, a diligent campus desk, and a cryptographically verified physical custody transfer. Explore our recovery track record and authentic campus community reviews.
             </p>
 
             {/* LIVE RECOVERY STATS STRIP */}
             <div className="reunited-stats-grid">
               <div className="reunited-stat-card">
-                <div className="stat-icon-wrap" style={{ background: 'rgba(22, 163, 74, 0.12)', color: '#16a34a' }}>
+                <div className="stat-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
                   <CheckCircle2 size={24} />
                 </div>
                 <div className="stat-info">
@@ -230,7 +269,7 @@ const Reunited = ({ user }) => {
               </div>
 
               <div className="reunited-stat-card">
-                <div className="stat-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#d97706' }}>
+                <div className="stat-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>
                   <Clock size={24} />
                 </div>
                 <div className="stat-info">
@@ -240,8 +279,8 @@ const Reunited = ({ user }) => {
               </div>
 
               <div className="reunited-stat-card">
-                <div className="stat-icon-wrap" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#db2777' }}>
-                  <Star size={24} fill="#db2777" />
+                <div className="stat-icon-wrap" style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#ec4899' }}>
+                  <Star size={24} fill="#ec4899" />
                 </div>
                 <div className="stat-info">
                   <div className="stat-number">{reviewStats.average || '4.9'} / 5</div>
@@ -257,14 +296,16 @@ const Reunited = ({ user }) => {
                 onClick={() => setActiveTab('reunited')}
               >
                 <Award size={18} />
-                <span>Reunited Items Gallery ({filteredReunited.length})</span>
+                <span>Reunited Items Gallery</span>
+                <span className="tab-badge-count">{filteredReunited.length}</span>
               </button>
               <button
                 className={`tab-btn ${activeTab === 'reviews' ? 'active' : ''}`}
                 onClick={() => setActiveTab('reviews')}
               >
                 <MessageSquare size={18} />
-                <span>Community Reviews &amp; Ratings ({reviews.length})</span>
+                <span>Campus Reviews &amp; Ratings</span>
+                <span className="tab-badge-count">{reviews.length}</span>
               </button>
             </div>
           </div>
@@ -273,12 +314,12 @@ const Reunited = ({ user }) => {
 
       {/* 2. TAB CONTENT: REUNITED GALLERY */}
       {activeTab === 'reunited' && (
-        <section className="section" style={{ paddingTop: '20px' }}>
+        <section className="section" style={{ paddingTop: '28px' }}>
           <div className="container">
             {/* Filter Bar */}
             <div className="reunited-filter-bar">
               <div className="reunited-search-box">
-                <Search size={18} color="var(--text-muted)" />
+                <Search size={18} className="reunited-search-icon" />
                 <input
                   type="text"
                   placeholder="Search reunited items by name, owner or location..."
@@ -286,7 +327,7 @@ const Reunited = ({ user }) => {
                   onChange={e => setReunitedSearch(e.target.value)}
                 />
                 {reunitedSearch && (
-                  <button onClick={() => setReunitedSearch('')} className="clear-btn">
+                  <button onClick={() => setReunitedSearch('')} className="reunited-search-clear" aria-label="Clear search">
                     <X size={16} />
                   </button>
                 )}
@@ -309,17 +350,19 @@ const Reunited = ({ user }) => {
             {reunitedLoading ? (
               <div style={{ textAlign: 'center', padding: '60px 0' }}>
                 <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-                <p style={{ color: 'var(--text-muted)' }}>Loading reunited campus belongings...</p>
+                <p style={{ color: 'var(--text-muted)' }}>Loading verified reunited campus belongings...</p>
               </div>
             ) : filteredReunited.length === 0 ? (
               <div className="empty-state-card">
                 <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
-                <h3>No Reunited Items Match Filters</h3>
-                <p style={{ color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto 16px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-heading)' }}>
+                  No Reunited Items Match Filters
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', maxWidth: '420px', margin: '0 auto 16px' }}>
                   Try resetting your category or search query to see all successfully recovered belongings.
                 </p>
                 <button
-                  className="btn btn-outline"
+                  className="btn btn-secondary"
                   onClick={() => { setReunitedCategory('All'); setReunitedSearch(''); }}
                 >
                   Clear Filters
@@ -334,16 +377,18 @@ const Reunited = ({ user }) => {
                   const handoverDate = handover.handedOverAt
                     ? new Date(handover.handedOverAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
                     : (item.date || 'Recently');
+                  const isCopied = copiedReceipt === receiptNo;
 
                   return (
                     <div key={item._id || item.id} className="reunited-card">
                       {/* Image Frame with Verified Badge */}
                       <div className="reunited-img-frame">
                         <img
-                          src={item.img || '/placeholder-item.jpg'}
+                          src={item.img || 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=600&auto=format&fit=crop&q=60'}
                           alt={item.name}
                           onError={e => { e.target.src = 'https://images.unsplash.com/photo-1584438784894-089d6a62b8fa?w=600&auto=format&fit=crop&q=60'; }}
                         />
+                        <div className="reunited-img-overlay" />
                         <div className="reunited-badge-stamp">
                           <CheckCircle2 size={13} />
                           <span>Handover Verified</span>
@@ -365,7 +410,7 @@ const Reunited = ({ user }) => {
                         {/* Handover Metadata */}
                         <div className="reunited-meta-list">
                           <div className="reunited-meta-row">
-                            <User size={14} color="#16a34a" />
+                            <User size={14} color="#10b981" />
                             <span>Returned to: <strong>{returnedTo}</strong></span>
                           </div>
                           <div className="reunited-meta-row">
@@ -376,17 +421,26 @@ const Reunited = ({ user }) => {
                             <Calendar size={14} color="var(--text-muted)" />
                             <span>Date Reunited: <strong>{handoverDate}</strong></span>
                           </div>
-                          <div className="reunited-meta-row receipt-row">
-                            <ShieldCheck size={14} color="#0891b2" />
-                            <span>Receipt: <code className="receipt-code">{receiptNo}</code></span>
+                          <div className="reunited-meta-row" style={{ justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <ShieldCheck size={14} color="#0891b2" />
+                              <span>Receipt: <code className="receipt-code">{receiptNo}</code></span>
+                            </div>
+                            <button
+                              onClick={() => copyReceipt(receiptNo)}
+                              title="Copy receipt token"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: isCopied ? '#10b981' : 'var(--text-muted)' }}
+                            >
+                              {isCopied ? <Check size={13} /> : <Copy size={13} />}
+                            </button>
                           </div>
                         </div>
 
                         {/* Card Actions */}
                         <div className="reunited-card-footer">
                           <button
-                            className="btn btn-primary-light btn-sm"
-                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                            className="btn btn-primary"
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', padding: '9px 14px' }}
                             onClick={() => setSelectedCertificateItem(item)}
                           >
                             <FileText size={15} />
@@ -405,7 +459,7 @@ const Reunited = ({ user }) => {
 
       {/* 3. TAB CONTENT: WEBSITE REVIEWS */}
       {activeTab === 'reviews' && (
-        <section className="section" style={{ paddingTop: '20px' }}>
+        <section className="section" style={{ paddingTop: '28px' }}>
           <div className="container">
             {/* Reviews Summary & Rating Card */}
             <div className="reviews-summary-card">
@@ -429,15 +483,25 @@ const Reunited = ({ user }) => {
                 </div>
               </div>
 
-              {/* Rating Distribution Bars */}
+              {/* Rating Distribution Bars with click-to-filter */}
               <div className="rating-bars-center">
                 {[5, 4, 3, 2, 1].map(stars => {
                   const count = reviewStats.breakdown?.[stars] || 0;
                   const total = reviewStats.total || reviews.length || 1;
                   const pct = Math.round((count / total) * 100);
+                  const isSelected = selectedStarFilter === stars;
+
                   return (
-                    <div key={stars} className="rating-bar-row">
-                      <div className="bar-label">{stars} ★</div>
+                    <div
+                      key={stars}
+                      className="rating-bar-row"
+                      style={{ background: isSelected ? 'rgba(79, 70, 229, 0.08)' : 'transparent' }}
+                      onClick={() => setSelectedStarFilter(isSelected ? null : stars)}
+                      title={`Filter by ${stars} stars`}
+                    >
+                      <div className="bar-label" style={{ color: isSelected ? 'var(--primary)' : 'inherit', fontWeight: isSelected ? 800 : 600 }}>
+                        {stars} ★
+                      </div>
                       <div className="bar-track">
                         <div className="bar-fill" style={{ width: `${pct}%` }}></div>
                       </div>
@@ -445,11 +509,19 @@ const Reunited = ({ user }) => {
                     </div>
                   );
                 })}
+                {selectedStarFilter && (
+                  <button
+                    onClick={() => setSelectedStarFilter(null)}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer', textAlign: 'left', padding: '2px 6px' }}
+                  >
+                    ✕ Clear {selectedStarFilter}★ filter
+                  </button>
+                )}
               </div>
 
               {/* Write Review Action CTA */}
               <div className="rating-cta-right">
-                <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--text-heading)', marginBottom: '6px' }}>
+                <div style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)', marginBottom: '6px' }}>
                   Share Your Experience
                 </div>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 16px 0' }}>
@@ -458,7 +530,7 @@ const Reunited = ({ user }) => {
                 <button
                   className="btn btn-primary"
                   onClick={() => setShowReviewModal(true)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px' }}
                 >
                   <MessageSquare size={16} />
                   <span>Write a Campus Review</span>
@@ -490,34 +562,44 @@ const Reunited = ({ user }) => {
             ) : filteredReviews.length === 0 ? (
               <div className="empty-state-card">
                 <div style={{ fontSize: '48px', marginBottom: '12px' }}>⭐</div>
-                <h3>No Reviews in This Category Yet</h3>
-                <p style={{ color: 'var(--text-muted)', margin: '0 auto 16px' }}>Be the first student or faculty member to write a review!</p>
-                <button className="btn btn-primary" onClick={() => setShowReviewModal(true)}>
-                  Write the First Review
+                <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-heading)' }}>
+                  No Reviews Found
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', margin: '0 auto 16px' }}>
+                  {selectedStarFilter ? `No reviews with ${selectedStarFilter} stars in this category.` : 'Be the first student or faculty member to write a review!'}
+                </p>
+                <button className="btn btn-primary" onClick={() => { setSelectedReviewCategory('All'); setSelectedStarFilter(null); }}>
+                  Clear Filters
                 </button>
               </div>
             ) : (
               <div className="reviews-grid">
                 {filteredReviews.map(rev => {
+                  const revId = rev._id || rev.id;
                   const revDate = rev.createdAt
                     ? new Date(rev.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
                     : 'Recently';
+                  const initials = getInitials(rev.name);
+                  const votes = helpfulVotes[revId] || 0;
 
                   return (
-                    <div key={rev._id || rev.id} className="review-card">
+                    <div key={revId} className="review-card">
                       <div className="review-card-header">
-                        <div>
-                          <div className="review-author-name">{rev.name}</div>
-                          <div className="review-author-meta">
-                            {rev.role === 'owner' ? 'Recovered Belonging Owner' : rev.role === 'finder' ? 'Honest Campus Finder' : rev.role === 'faculty' ? 'Faculty / Staff' : 'Verified Student'}
-                            {rev.roll ? ` • Roll: ${rev.roll}` : ''}
+                        <div className="review-author-wrap">
+                          <div className="review-author-avatar">{initials}</div>
+                          <div>
+                            <div className="review-author-name">{rev.name}</div>
+                            <div className="review-author-meta">
+                              {rev.role === 'owner' ? '🔑 Recovered Belonging Owner' : rev.role === 'finder' ? '🤝 Honest Campus Finder' : rev.role === 'faculty' ? '👨‍🏫 Faculty / Staff' : '🎓 Verified Student'}
+                              {rev.roll ? ` • Roll: ${rev.roll}` : ''}
+                            </div>
                           </div>
                         </div>
                         <div className="stars-row">
                           {[1, 2, 3, 4, 5].map(s => (
                             <Star
                               key={s}
-                              size={16}
+                              size={15}
                               color="#f59e0b"
                               fill={s <= Number(rev.rating || 5) ? '#f59e0b' : 'none'}
                             />
@@ -528,7 +610,7 @@ const Reunited = ({ user }) => {
                       {rev.category && (
                         <div className="review-cat-tag">
                           <span>📌 {rev.category}</span>
-                          {rev.itemName && <span>• Related to: <em>{rev.itemName}</em></span>}
+                          {rev.itemName && <span>• <em>{rev.itemName}</em></span>}
                         </div>
                       )}
 
@@ -536,10 +618,31 @@ const Reunited = ({ user }) => {
 
                       <div className="review-card-footer">
                         <div className="verified-student-tag">
-                          <CheckCircle2 size={13} color="#16a34a" />
+                          <CheckCircle2 size={13} color="#10b981" />
                           <span>Verified Campus Member</span>
                         </div>
-                        <div className="review-date-text">{revDate}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <button
+                            onClick={() => toggleHelpful(revId)}
+                            style={{
+                              background: 'none',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '6px',
+                              padding: '2px 8px',
+                              fontSize: '11px',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            title="Mark review as helpful"
+                          >
+                            <ThumbsUp size={11} />
+                            <span>{votes > 0 ? votes : 'Helpful'}</span>
+                          </button>
+                          <div className="review-date-text">{revDate}</div>
+                        </div>
                       </div>
                     </div>
                   );
