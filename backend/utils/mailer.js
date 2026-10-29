@@ -86,6 +86,7 @@ async function sendOtpEmail({ to, otp, purpose = 'verification', name = '' }) {
   const isAdmin = purpose === 'admin_login';
   const isLogin = purpose === 'user_login' || purpose === 'login';
   const isRegister = purpose === 'user_register' || purpose === 'register';
+  const isReset = purpose === 'reset_password' || purpose === 'forgot_password';
 
   let subject = '🎓 Verification OTP - The Apollo University Lost & Found';
   let headingTitle = 'Campus Account Verification';
@@ -95,6 +96,10 @@ async function sendOtpEmail({ to, otp, purpose = 'verification', name = '' }) {
     subject = '🔒 Admin 2FA Security Passcode - The Apollo University';
     headingTitle = 'Administrator Security Verification';
     bodyCopy = 'A sign-in attempt was initiated for your Administrator account. Please enter the one-time security passcode below to access the Admin Control Center:';
+  } else if (isReset) {
+    subject = '🔑 Password Reset OTP - The Apollo University Lost & Found';
+    headingTitle = 'Password Reset Security Verification';
+    bodyCopy = 'A password reset request was initiated for your campus account. Please enter the one-time security code (OTP) below to verify your identity and reset your password:';
   } else if (isLogin) {
     subject = '🔐 Login Verification OTP - The Apollo University Lost & Found';
     headingTitle = 'Real-Time Sign-In Security Verification';

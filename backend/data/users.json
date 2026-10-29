@@ -1,1 +1,47 @@
-[]
+[
+  {
+    "_id": "2306d733-601a-45f8-9a10-f1aa0334819f",
+    "id": "2306d733-601a-45f8-9a10-f1aa0334819f",
+    "name": "Suresh Kumar",
+    "email": "reset_student_1793162218683@apollo.edu.in",
+    "roll": "122376747694",
+    "phone": "9876543210",
+    "password": "OldSecretPassword@123",
+    "role": "student",
+    "isBanned": false,
+    "banReason": "",
+    "lastActive": "2026-10-28T04:36:58.684Z",
+    "reportsReceived": 0,
+    "createdAt": "2026-10-28T04:36:58.684Z"
+  },
+  {
+    "_id": "62bcd211-2d37-416a-8093-b69e8cc755a2",
+    "id": "62bcd211-2d37-416a-8093-b69e8cc755a2",
+    "name": "Suresh Kumar",
+    "email": "reset_student_1793162234755@apollo.edu.in",
+    "roll": "122315429913",
+    "phone": "9876543210",
+    "password": "OldSecretPassword@123",
+    "role": "student",
+    "isBanned": false,
+    "banReason": "",
+    "lastActive": "2026-10-28T04:37:14.756Z",
+    "reportsReceived": 0,
+    "createdAt": "2026-10-28T04:37:14.757Z"
+  },
+  {
+    "_id": "c5e45dc1-4452-45b2-82c3-70f72938518c",
+    "id": "c5e45dc1-4452-45b2-82c3-70f72938518c",
+    "name": "Suresh Kumar",
+    "email": "reset_student_1793162263453@apollo.edu.in",
+    "roll": "122327730133",
+    "phone": "9876543210",
+    "password": "OldSecretPassword@123",
+    "role": "student",
+    "isBanned": false,
+    "banReason": "",
+    "lastActive": "2026-10-28T04:37:43.454Z",
+    "reportsReceived": 0,
+    "createdAt": "2026-10-28T04:37:43.454Z"
+  }
+]

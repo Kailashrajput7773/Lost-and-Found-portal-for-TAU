@@ -17,7 +17,6 @@ const Login = ({ setUser }) => {
   // Real-Time Login 2FA OTP State (For ALL users - Students, Staff, and Admin)
   const [loginOtpStep, setLoginOtpStep] = useState(false);
   const [loginOtp, setLoginOtp] = useState('');
-  const [dispatchedLoginOtp, setDispatchedLoginOtp] = useState('');
   const [targetEmail, setTargetEmail] = useState('');
   const [isAdminSession, setIsAdminSession] = useState(false);
 
@@ -33,7 +32,16 @@ const Login = ({ setUser }) => {
   });
   const [regOtpStep, setRegOtpStep] = useState(false);
   const [regOtp, setRegOtp] = useState('');
-  const [dispatchedRegOtp, setDispatchedRegOtp] = useState('');
+
+  // Forgot Password State
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotStep, setForgotStep] = useState('request'); // 'request' | 'verify' | 'reset'
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Resend Cooldown Timer
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -77,8 +85,6 @@ const Login = ({ setUser }) => {
       // Real-time OTP challenge required
       if (res.data.requiresOtp) {
         setLoginOtpStep(true);
-        // If simulated (because EMAIL_PASS is empty), store the simulation code; otherwise empty
-        setDispatchedLoginOtp(res.data.simulated ? (res.data.otp || '') : '');
         setTargetEmail(res.data.email || input);
         setIsAdminSession(res.data.purpose === 'admin_login' || input.toLowerCase() === ADMIN_EMAIL.toLowerCase());
         setSuccessMsg(res.data.message || `A verification OTP has been dispatched to ${res.data.email || input}`);
@@ -153,7 +159,6 @@ const Login = ({ setUser }) => {
 
       if (res.data.requiresOtp) {
         setRegOtpStep(true);
-        setDispatchedRegOtp(res.data.simulated ? (res.data.otp || '') : '');
         setSuccessMsg(res.data.message || `Verification OTP dispatched to ${regData.email}`);
         setResendCooldown(30);
       } else if (res.data.ok && res.data.user) {
@@ -207,20 +212,122 @@ const Login = ({ setUser }) => {
       setSuccessMsg('Dispatching fresh verification OTP...');
       const res = await api.post('/api/auth/send-otp', { email, purpose });
       if (res.data.ok) {
-        if (res.data.simulated && res.data.otp) {
-          if (purpose === 'admin_login' || purpose === 'user_login' || purpose === 'login') {
-            setDispatchedLoginOtp(res.data.otp);
-          }
-          if (purpose === 'user_register') setDispatchedRegOtp(res.data.otp);
-        } else {
-          setDispatchedLoginOtp('');
-          setDispatchedRegOtp('');
-        }
         setSuccessMsg(`A fresh real-time OTP has been dispatched to ${email}`);
         setResendCooldown(30);
       }
     } catch (err) {
       setErrorMsg(err.response?.data?.error || 'Failed to resend OTP. Please try again in a few moments.');
+    }
+  };
+
+  // 5. FORGOT & RESET PASSWORD HANDLERS
+  const handleForgotRequest = async (e) => {
+    e.preventDefault();
+    const idInput = forgotIdentifier.trim();
+    if (!idInput) {
+      setErrorMsg('Please enter your campus email or roll number.');
+      return;
+    }
+    setErrorMsg('');
+    setSuccessMsg('');
+    setLoading(true);
+
+    try {
+      const res = await api.post('/api/auth/forgot-password', { identifier: idInput });
+      if (res.data.ok) {
+        setForgotEmail(res.data.email);
+        setForgotStep('verify');
+        setSuccessMsg(res.data.message || `A verification code was dispatched to ${res.data.email}`);
+        setResendCooldown(30);
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.error || 'Failed to dispatch reset code. Please check your identifier.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotVerifyOtp = async (e) => {
+    e.preventDefault();
+    const code = forgotOtp.trim();
+    if (!code || code.length < 6) {
+      setErrorMsg('Please enter the full 6-digit verification code.');
+      return;
+    }
+    setErrorMsg('');
+    setSuccessMsg('');
+    setLoading(true);
+
+    try {
+      const res = await api.post('/api/auth/verify-reset-otp', {
+        email: forgotEmail,
+        otp: code
+      });
+      if (res.data.ok) {
+        setForgotStep('reset');
+        setSuccessMsg(res.data.message || 'Code verified! Please create your new password.');
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.error || 'Invalid or expired code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotResetPassword = async (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!newPassword.trim() || newPassword.trim().length < 4) {
+      setErrorMsg('Password must be at least 4 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setErrorMsg('New passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await api.post('/api/auth/reset-password', {
+        email: forgotEmail,
+        otp: forgotOtp.trim(),
+        newPassword: newPassword.trim()
+      });
+
+      if (res.data.ok) {
+        setSuccessMsg(res.data.message || 'Password reset successfully! You can now sign in.');
+        setForgotMode(false);
+        setForgotStep('request');
+        setForgotOtp('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setTab('signin');
+        setIdentifier(forgotEmail);
+        setPassword('');
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.error || 'Failed to reset password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendForgotOtp = async () => {
+    if (resendCooldown > 0 || !forgotEmail) return;
+    setErrorMsg('');
+    setSuccessMsg('Dispatching fresh password reset code...');
+    try {
+      const res = await api.post('/api/auth/forgot-password', { identifier: forgotEmail });
+      if (res.data.ok) {
+        setSuccessMsg(`A fresh reset code has been sent to ${forgotEmail}`);
+        setResendCooldown(30);
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.error || 'Failed to resend reset code.');
     }
   };
 
@@ -255,65 +362,23 @@ const Login = ({ setUser }) => {
               </div>
 
               {/* REAL-TIME EMAIL STATUS BADGE */}
-              {!dispatchedLoginOtp ? (
-                <div
-                  style={{
-                    background: 'var(--primary-subtle)',
-                    border: '1px solid rgba(79, 70, 229, 0.25)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    marginBottom: '18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}
-                >
-                  <span style={{ fontSize: '22px' }}>📬</span>
-                  <div style={{ fontSize: '12.5px', color: 'var(--primary)', lineHeight: 1.4 }}>
-                    <strong>Check your Email Inbox:</strong> We've dispatched a real-time OTP to your inbox. Check your Spam folder if not received in 30 seconds.
-                  </div>
+              <div
+                style={{
+                  background: 'var(--primary-subtle)',
+                  border: '1px solid rgba(79, 70, 229, 0.25)',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+              >
+                <span style={{ fontSize: '22px' }}>📬</span>
+                <div style={{ fontSize: '12.5px', color: 'var(--primary)', lineHeight: 1.4 }}>
+                  <strong>Check your Email Inbox:</strong> We've dispatched a real-time OTP to your inbox. Check your Spam folder if not received in 30 seconds.
                 </div>
-              ) : (
-                /* Simulation Fallback Badge if EMAIL_PASS is empty in backend/.env */
-                <div
-                  style={{
-                    background: '#fffbeb',
-                    border: '1px solid #fde68a',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    marginBottom: '18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '11px', color: '#b45309', fontWeight: 700, textTransform: 'uppercase' }}>
-                      ⚙️ Dev Notice (EMAIL_PASS not in .env):
-                    </div>
-                    <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '4px', color: '#b45309' }}>
-                      {dispatchedLoginOtp}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setLoginOtp(dispatchedLoginOtp)}
-                    style={{
-                      background: '#d97706',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '6px 10px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Auto-Fill OTP
-                  </button>
-                </div>
-              )}
+              </div>
 
               {errorMsg && (
                 <div style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
@@ -414,65 +479,23 @@ const Login = ({ setUser }) => {
               </div>
 
               {/* REAL-TIME EMAIL STATUS BADGE */}
-              {!dispatchedRegOtp ? (
-                <div
-                  style={{
-                    background: 'var(--primary-subtle)',
-                    border: '1px solid rgba(79, 70, 229, 0.25)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    marginBottom: '18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}
-                >
-                  <span style={{ fontSize: '22px' }}>📬</span>
-                  <div style={{ fontSize: '12.5px', color: 'var(--primary)', lineHeight: 1.4 }}>
-                    <strong>Real-Time Code Sent:</strong> Please check your email inbox and spam folder for the registration passcode.
-                  </div>
+              <div
+                style={{
+                  background: 'var(--primary-subtle)',
+                  border: '1px solid rgba(79, 70, 229, 0.25)',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+              >
+                <span style={{ fontSize: '22px' }}>📬</span>
+                <div style={{ fontSize: '12.5px', color: 'var(--primary)', lineHeight: 1.4 }}>
+                  <strong>Real-Time Code Sent:</strong> Please check your email inbox and spam folder for the registration passcode.
                 </div>
-              ) : (
-                /* Simulation Fallback Badge if EMAIL_PASS is empty in backend/.env */
-                <div
-                  style={{
-                    background: '#fffbeb',
-                    border: '1px solid #fde68a',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    marginBottom: '18px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '11px', color: '#b45309', fontWeight: 700, textTransform: 'uppercase' }}>
-                      ⚙️ Dev Notice (EMAIL_PASS not in .env):
-                    </div>
-                    <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '4px', color: '#b45309' }}>
-                      {dispatchedRegOtp}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRegOtp(dispatchedRegOtp)}
-                    style={{
-                      background: '#d97706',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '6px 10px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Auto-Fill OTP
-                  </button>
-                </div>
-              )}
+              </div>
 
               {errorMsg && (
                 <div style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
@@ -557,6 +580,276 @@ const Login = ({ setUser }) => {
                   </button>
                 </div>
               </form>
+            </div>
+          ) : forgotMode ? (
+            /* FORGOT & RESET PASSWORD WORKFLOW */
+            <div>
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{ fontSize: '42px', marginBottom: '8px' }}>
+                  {forgotStep === 'reset' ? '🛡️' : forgotStep === 'verify' ? '📬' : '🔑'}
+                </div>
+                <h1 style={{ fontSize: '22px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-heading)' }}>
+                  {forgotStep === 'reset'
+                    ? 'Set New Password'
+                    : forgotStep === 'verify'
+                    ? 'Verify Security Code'
+                    : 'Reset Your Password'}
+                </h1>
+                <p style={{ fontSize: '13.5px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                  {forgotStep === 'reset'
+                    ? 'Identity confirmed. Enter and confirm your new secure password.'
+                    : forgotStep === 'verify'
+                    ? <>A 6-digit verification code was sent to <strong style={{ color: 'var(--text-body)', wordBreak: 'break-all' }}>{forgotEmail}</strong></>
+                    : 'Enter your registered campus email or roll number to receive a 6-digit verification code.'}
+                </p>
+              </div>
+
+              {/* Status Badge during Verify step */}
+              {forgotStep === 'verify' && (
+                <div
+                  style={{
+                    background: 'var(--primary-subtle)',
+                    border: '1px solid rgba(79, 70, 229, 0.25)',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    marginBottom: '18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <span style={{ fontSize: '22px' }}>📬</span>
+                  <div style={{ fontSize: '12.5px', color: 'var(--primary)', lineHeight: 1.4 }}>
+                    <strong>Check your Email Inbox:</strong> We've dispatched a password reset OTP. Check your Spam folder if not received in 30 seconds.
+                  </div>
+                </div>
+              )}
+
+              {errorMsg && (
+                <div style={{ background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+                  ⚠️ {errorMsg}
+                </div>
+              )}
+
+              {successMsg && (
+                <div style={{ background: '#dcfce7', color: '#166534', border: '1px solid #86efac', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+                  ✅ {successMsg}
+                </div>
+              )}
+
+              {/* STEP 1: Enter email or roll number */}
+              {forgotStep === 'request' && (
+                <form onSubmit={handleForgotRequest} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div className="field">
+                    <label htmlFor="forgot-identifier" style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                      Campus Email or Roll Number *
+                    </label>
+                    <input
+                      id="forgot-identifier"
+                      type="text"
+                      className="input"
+                      placeholder="e.g., student@apollo.edu.in or 12231152..."
+                      required
+                      autoFocus
+                      value={forgotIdentifier}
+                      onChange={e => setForgotIdentifier(e.target.value)}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      padding: '12px',
+                      minHeight: '44px',
+                      background: 'var(--primary)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '15px',
+                      cursor: loading ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {loading ? 'Sending Code...' : 'Send Reset Code'}
+                  </button>
+
+                  <div style={{ textAlign: 'center', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotMode(false);
+                        setForgotStep('request');
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                      }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', padding: 0 }}
+                    >
+                      ← Back to Sign In
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* STEP 2: Verify 6-digit OTP */}
+              {forgotStep === 'verify' && (
+                <form onSubmit={handleForgotVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div className="field">
+                    <label htmlFor="forgot-otp-input" style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                      Enter 6-Digit Verification Code *
+                    </label>
+                    <input
+                      id="forgot-otp-input"
+                      type="text"
+                      maxLength={6}
+                      placeholder="• • • • • •"
+                      value={forgotOtp}
+                      onChange={e => setForgotOtp(e.target.value.replace(/\D/g, ''))}
+                      required
+                      autoFocus
+                      style={{
+                        width: '100%',
+                        padding: '14px',
+                        fontSize: '22px',
+                        fontWeight: 800,
+                        textAlign: 'center',
+                        letterSpacing: '8px',
+                        borderRadius: '8px',
+                        border: '2px solid var(--border-color)',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      padding: '12px',
+                      minHeight: '44px',
+                      background: 'var(--primary)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '15px',
+                      cursor: loading ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {loading ? 'Verifying...' : 'Verify Code'}
+                  </button>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontSize: '12.5px' }}>
+                    <button
+                      type="button"
+                      disabled={resendCooldown > 0}
+                      onClick={handleResendForgotOtp}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: resendCooldown > 0 ? 'var(--text-muted)' : 'var(--primary)',
+                        fontWeight: 700,
+                        cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      {resendCooldown > 0 ? `Resend Code in ${resendCooldown}s` : '🔄 Resend Code'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotStep('request');
+                        setForgotOtp('');
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                      }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
+                    >
+                      ← Edit Email
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* STEP 3: Enter New Password */}
+              {forgotStep === 'reset' && (
+                <form onSubmit={handleForgotResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div className="field">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label htmlFor="forgot-new-password" style={{ fontSize: '13px', fontWeight: 600 }}>New Password *</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer', fontWeight: 600, padding: '4px' }}
+                      >
+                        {showNewPassword ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                    <input
+                      id="forgot-new-password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      className="input"
+                      placeholder="Minimum 4 characters"
+                      required
+                      autoFocus
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="forgot-confirm-password" style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                      Confirm New Password *
+                    </label>
+                    <input
+                      id="forgot-confirm-password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      className="input"
+                      placeholder="Re-enter your new password"
+                      required
+                      value={confirmNewPassword}
+                      onChange={e => setConfirmNewPassword(e.target.value)}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{
+                      padding: '12px',
+                      minHeight: '44px',
+                      background: 'var(--primary)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '15px',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      marginTop: '4px'
+                    }}
+                  >
+                    {loading ? 'Saving New Password...' : 'Save New Password'}
+                  </button>
+
+                  <div style={{ textAlign: 'center', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotMode(false);
+                        setForgotStep('request');
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                      }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '13px', padding: 0 }}
+                    >
+                      ← Cancel and Back to Sign In
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           ) : (
             /* NORMAL LOGIN / REGISTRATION TABS */
@@ -668,6 +961,30 @@ const Login = ({ setUser }) => {
                       onChange={e => setPassword(e.target.value)}
                       style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxSizing: 'border-box', minHeight: '44px' }}
                     />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotMode(true);
+                        setForgotStep('request');
+                        setForgotIdentifier(identifier || '');
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--primary)',
+                        fontSize: '12.5px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: '2px 0'
+                      }}
+                    >
+                      Forgot password?
+                    </button>
                   </div>
 
                   <button

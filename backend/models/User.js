@@ -4,9 +4,10 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const os = require('os');
 const isVercel = !!process.env.VERCEL;
+const SEED_FILE = path.join(__dirname, '..', 'data', 'users.json');
 const DATA_FILE = isVercel
   ? path.join(os.tmpdir(), 'users.json')
-  : path.join(__dirname, '..', 'data', 'users.json');
+  : SEED_FILE;
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -28,8 +29,16 @@ function readLocalUsers() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
       fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-      fs.writeFileSync(DATA_FILE, '[]', 'utf8');
-      return [];
+      let seedData = '[]';
+      if (fs.existsSync(SEED_FILE)) {
+        try {
+          seedData = fs.readFileSync(SEED_FILE, 'utf8') || '[]';
+        } catch (readErr) {
+          console.warn("Notice: could not read user SEED_FILE:", readErr.message);
+        }
+      }
+      fs.writeFileSync(DATA_FILE, seedData, 'utf8');
+      return JSON.parse(seedData || '[]');
     }
     const data = fs.readFileSync(DATA_FILE, 'utf8');
     return JSON.parse(data || '[]');
