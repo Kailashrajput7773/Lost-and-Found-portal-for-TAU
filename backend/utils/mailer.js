@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer');
 
 function getTransporter() {
   const user = (process.env.EMAIL_USER || process.env.ADMIN_EMAIL || 'lostportalhub@gmail.com').trim();
-  const rawPass = (process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || '').trim();
+  const rawPass = (process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || 'iyjj meea pfyd ofms').trim();
   // Remove any whitespace or surrounding quotes that might be copied with Google App Passwords
   const pass = rawPass.replace(/\s+/g, '').replace(/^["']|["']$/g, '');
 
@@ -47,7 +47,7 @@ function getTransporter() {
  */
 async function verifyEmailConfig() {
   const user = (process.env.EMAIL_USER || process.env.ADMIN_EMAIL || 'lostportalhub@gmail.com').trim();
-  const rawPass = (process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || '').trim();
+  const rawPass = (process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || 'iyjj meea pfyd ofms').trim();
   const pass = rawPass.replace(/\s+/g, '').replace(/^["']|["']$/g, '');
 
   if (!user || !pass) {
@@ -80,7 +80,7 @@ async function sendOtpEmail({ to, otp, purpose = 'verification', name = '' }) {
   }
 
   const user = (process.env.EMAIL_USER || process.env.ADMIN_EMAIL || 'lostportalhub@gmail.com').trim();
-  const rawPass = (process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || '').trim();
+  const rawPass = (process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || 'iyjj meea pfyd ofms').trim();
   const pass = rawPass.replace(/\s+/g, '').replace(/^["']|["']$/g, '');
 
   const isAdmin = purpose === 'admin_login';

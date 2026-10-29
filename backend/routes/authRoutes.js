@@ -465,6 +465,7 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     const cleanId = String(identifier).trim().toLowerCase();
+    const cleanIdNoSpaces = cleanId.replace(/\s+/g, '');
 
     // Prevent overriding admin password via forgot password flow
     if (cleanId === ADMIN_EMAIL.toLowerCase()) {
@@ -473,14 +474,28 @@ router.post('/forgot-password', async (req, res) => {
       });
     }
 
+    // Comprehensive lookup: exact email, roll, roll prefix before @ in email, or name
     let user = await User.findOne({ email: cleanId });
+    if (!user && cleanIdNoSpaces !== cleanId) {
+      user = await User.findOne({ email: cleanIdNoSpaces });
+    }
     if (!user) {
       user = await User.findOne({ roll: cleanId });
+    }
+    if (!user && cleanIdNoSpaces !== cleanId) {
+      user = await User.findOne({ roll: cleanIdNoSpaces });
+    }
+    if (!user) {
+      const escaped = cleanIdNoSpaces.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      user = await User.findOne({ email: new RegExp(`^${escaped}@`, 'i') });
+    }
+    if (!user) {
+      user = await User.findOne({ name: cleanId });
     }
 
     if (!user) {
       return res.status(404).json({
-        error: "No account found with this email or roll number. Please check your credentials or register."
+        error: `No registered account found matching "${identifier}". Please check your email or roll number, or click Register to create a new account.`
       });
     }
 
@@ -503,6 +518,16 @@ router.post('/forgot-password', async (req, res) => {
       email: userEmail,
       verified: false
     });
+
+    // Persist in DB for serverless multi-container reliability on Vercel
+    try {
+      await User.findByIdAndUpdate(user._id || user.id, {
+        resetOtp: otp,
+        resetOtpExpires: new Date(expiresAt)
+      });
+    } catch (e) {
+      console.warn("Notice: could not persist resetOtp to DB:", e.message);
+    }
 
     const mailResult = await sendOtpEmail({
       to: userEmail,
@@ -540,28 +565,42 @@ router.post('/verify-reset-otp', async (req, res) => {
     const cleanOtp = String(otp).trim();
     const record = otpStore.get(cleanEmail);
 
-    if (!record || record.purpose !== 'reset_password') {
-      return res.status(400).json({
-        error: "No active password reset request found for this email. Please request a new code."
-      });
+    let isValid = false;
+    let isExpired = false;
+
+    if (record && record.purpose === 'reset_password') {
+      if (Date.now() > record.expiresAt) {
+        isExpired = true;
+      } else if (record.otp === cleanOtp) {
+        isValid = true;
+        record.verified = true;
+        otpStore.set(cleanEmail, record);
+      }
     }
 
-    if (Date.now() > record.expiresAt) {
-      otpStore.delete(cleanEmail);
+    if (!isValid) {
+      // Fallback check against DB for Vercel serverless multi-instance support
+      const dbUser = await User.findOne({ email: cleanEmail });
+      if (dbUser && dbUser.resetOtp) {
+        if (dbUser.resetOtpExpires && new Date(dbUser.resetOtpExpires).getTime() < Date.now()) {
+          isExpired = true;
+        } else if (dbUser.resetOtp === cleanOtp) {
+          isValid = true;
+        }
+      }
+    }
+
+    if (isExpired) {
       return res.status(400).json({
         error: "Your verification code has expired. Please request a new password reset code."
       });
     }
 
-    if (record.otp !== cleanOtp) {
+    if (!isValid) {
       return res.status(400).json({
         error: "Incorrect verification code. Please check your email inbox and enter the 6-digit OTP."
       });
     }
-
-    // Mark as verified so the user can proceed to set a new password
-    record.verified = true;
-    otpStore.set(cleanEmail, record);
 
     res.json({
       ok: true,
@@ -590,38 +629,61 @@ router.post('/reset-password', async (req, res) => {
     }
 
     const record = otpStore.get(cleanEmail);
-    if (!record || record.purpose !== 'reset_password') {
-      return res.status(400).json({
-        error: "No active password reset session found. Please request a new reset code."
-      });
+    const dbUser = await User.findOne({ email: cleanEmail });
+
+    let isValid = false;
+    let isExpired = false;
+
+    if (record && record.purpose === 'reset_password') {
+      if (Date.now() > record.expiresAt) {
+        isExpired = true;
+      } else if (record.otp === cleanOtp) {
+        isValid = true;
+      }
     }
 
-    if (Date.now() > record.expiresAt) {
+    if (!isValid && dbUser && dbUser.resetOtp) {
+      if (dbUser.resetOtpExpires && new Date(dbUser.resetOtpExpires).getTime() < Date.now()) {
+        isExpired = true;
+      } else if (dbUser.resetOtp === cleanOtp) {
+        isValid = true;
+      }
+    }
+
+    if (isExpired) {
       otpStore.delete(cleanEmail);
       return res.status(400).json({
         error: "Your password reset session has expired. Please request a new code."
       });
     }
 
-    if (record.otp !== cleanOtp) {
+    if (!isValid) {
       return res.status(400).json({
         error: "Invalid verification code. Please verify the code sent to your email."
       });
     }
 
-    // Update password in database
-    await User.findByIdAndUpdate(record.userId, { password: cleanNewPass });
-
-    // Also update document instance if available
-    const user = await User.findOne({ email: cleanEmail });
-    if (user) {
-      user.password = cleanNewPass;
-      if (typeof user.save === 'function') {
-        try { await user.save(); } catch (e) {}
-      }
+    if (!dbUser) {
+      return res.status(404).json({ error: "User account not found." });
     }
 
-    // Clear used OTP session
+    // Update password in database and clear reset OTP
+    await User.findByIdAndUpdate(dbUser._id || dbUser.id, {
+      password: cleanNewPass,
+      resetOtp: "",
+      resetOtpExpires: null
+    });
+
+    if (typeof dbUser.save === 'function') {
+      try {
+        dbUser.password = cleanNewPass;
+        dbUser.resetOtp = "";
+        dbUser.resetOtpExpires = null;
+        await dbUser.save();
+      } catch (e) {}
+    }
+
+    // Clear in-memory OTP session
     otpStore.delete(cleanEmail);
 
     res.json({

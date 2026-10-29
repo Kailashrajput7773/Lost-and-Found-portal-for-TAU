@@ -20,7 +20,9 @@ const userSchema = new mongoose.Schema({
   banReason: { type: String, default: "" },
   lastActive: { type: Date, default: Date.now },
   reportsReceived: { type: Number, default: 0 },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  resetOtp: { type: String, default: "" },
+  resetOtpExpires: { type: Date }
 });
 
 const MongoUser = mongoose.model('User', userSchema);
@@ -75,6 +77,8 @@ class UserWrapper {
     this.lastActive = data.lastActive ? new Date(data.lastActive) : new Date();
     this.reportsReceived = Number(data.reportsReceived || 0);
     this.createdAt = data.createdAt ? new Date(data.createdAt) : new Date();
+    this.resetOtp = data.resetOtp || "";
+    this.resetOtpExpires = data.resetOtpExpires ? new Date(data.resetOtpExpires) : null;
   }
 
   async save() {
