@@ -60,6 +60,15 @@ const Login = ({ setUser }) => {
     }
   }, [resendCooldown]);
 
+  // Check URL params for admin redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('admin') === 'true' || params.get('redirect') === '/admin') {
+      setIdentifier(ADMIN_EMAIL);
+      setTab('signin');
+    }
+  }, []);
+
   // 1. HANDLE SIGN IN (Step 1: Authenticate credentials & Dispatch Real-Time OTP)
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -921,18 +930,54 @@ const Login = ({ setUser }) => {
                 </div>
               )}
 
-              {/* SIGN IN FORM (NO OTP FOR REGULAR USERS, OTP TRIGGERED FOR ADMIN) */}
+              {/* SIGN IN FORM (DIRECT ADMIN LOGIN FOR lostportalhub@gmail.com) */}
               {tab === 'signin' ? (
                 <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div
+                    style={{
+                      background: identifier.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() ? 'rgba(79, 70, 229, 0.08)' : 'var(--bg-muted)',
+                      border: identifier.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() ? '1px solid var(--primary)' : '1px dashed var(--border-subtle)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      🛡️ Campus Admin Access:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdentifier(ADMIN_EMAIL);
+                        setErrorMsg('');
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--primary)',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: '12px'
+                      }}
+                    >
+                      {identifier.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() ? '✓ lostportalhub@gmail.com selected' : 'Use Admin Email'}
+                    </button>
+                  </div>
+
                   <div className="field">
                     <label htmlFor="signin-identifier" style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
-                      Email, Roll Number, or Admin ID *
+                      Email, Roll Number, or Admin Email *
                     </label>
                     <input
                       id="signin-identifier"
                       type="text"
                       className="input"
-                      placeholder="e.g., student@apollo.edu.in or admin email"
+                      placeholder="e.g., student@apollo.edu.in or lostportalhub@gmail.com"
                       required
                       value={identifier}
                       onChange={e => setIdentifier(e.target.value)}

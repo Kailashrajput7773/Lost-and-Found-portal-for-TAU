@@ -5,7 +5,11 @@ import { Menu, X, PlusCircle, User, Shield } from 'lucide-react';
 const Navbar = ({ theme, toggleTheme, user, setUser }) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const isAdmin = user?.role === 'admin' || user?.isAdmin;
+  const isAdmin = Boolean(
+    user &&
+    user.email?.trim().toLowerCase() === 'lostportalhub@gmail.com' &&
+    (user.role === 'admin' || user.isAdmin)
+  );
 
   const closeMobile = () => setMobileMenuOpen(false);
 
@@ -243,6 +247,22 @@ const Navbar = ({ theme, toggleTheme, user, setUser }) => {
             <Link className={`nav-link ${location.pathname === '/reunited' ? 'active' : ''}`} to="/reunited" onClick={closeMobile}>
               <span>🎉</span> Reunited Belongings &amp; Reviews
             </Link>
+            {isAdmin && (
+              <Link
+                className={`nav-link ${location.pathname === '/admin' ? 'active' : ''}`}
+                to="/admin"
+                onClick={closeMobile}
+                style={{
+                  color: 'var(--primary)',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Shield size={16} /> Admin Console
+              </Link>
+            )}
 
             <div style={{ display: 'flex', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>

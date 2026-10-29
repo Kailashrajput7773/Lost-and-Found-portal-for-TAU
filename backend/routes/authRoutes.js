@@ -5,7 +5,7 @@ const Allegation = require('../models/Allegation');
 const { sendOtpEmail, verifyEmailConfig } = require('../utils/mailer');
 
 const ADMIN_EMAIL = 'lostportalhub@gmail.com';
-const ADMIN_PASSWORD = 'qwertyuiop@123';
+const ADMIN_PASSWORD = 'kailash07bolt@';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'lostportalhub-admin-secret-2026';
 
 // In-memory OTP Store: email -> { otp, expiresAt, purpose, ... }
@@ -98,74 +98,20 @@ router.post('/login', async (req, res) => {
     const cleanId = String(identifier).trim().toLowerCase();
     const cleanPass = String(password).trim();
 
-    // 1. Dedicated Admin Authentication with MANDATORY OTP EVERY TIME
-    if (cleanId === ADMIN_EMAIL.toLowerCase() && cleanPass === ADMIN_PASSWORD) {
-      // Step A: If no OTP supplied, trigger OTP challenge and send email to lostportalhub@gmail.com
-      if (!otp) {
-        const adminOtp = generateOtp();
-        const expiresAt = Date.now() + 10 * 60 * 1000;
-        otpStore.set(ADMIN_EMAIL.toLowerCase(), {
-          otp: adminOtp,
-          expiresAt,
-          purpose: 'admin_login'
-        });
-
-        // Dispatch real-time email to admin email
-        const mailResult = await sendOtpEmail({
-          to: ADMIN_EMAIL,
-          otp: adminOtp,
-          purpose: 'admin_login',
-          name: 'Portal Administrator'
-        });
-
-        if (!mailResult.success) {
-          return res.status(500).json({
-            ok: false,
-            error: `Failed to dispatch Admin 2FA OTP: ${mailResult.error || 'SMTP delivery failure'}. Check EMAIL_PASS in backend/.env.`
-          });
-        }
-
-        return res.json({
-          ok: true,
-          requiresOtp: true,
-          email: ADMIN_EMAIL,
-          purpose: 'admin_login',
-          simulated: mailResult.simulated || false,
-          message: `Admin 2FA Security Check: An OTP has been sent to ${ADMIN_EMAIL}.`
+    // 1. Dedicated Admin Authentication: STRICTLY restricted to lostportalhub@gmail.com with password kailash07bolt@
+    if (cleanId === ADMIN_EMAIL.toLowerCase()) {
+      if (cleanPass !== ADMIN_PASSWORD) {
+        return res.status(401).json({
+          error: "Invalid administrator credentials. Access to the Admin Console is strictly denied."
         });
       }
 
-      // Step B: Verify submitted OTP
-      const record = otpStore.get(ADMIN_EMAIL.toLowerCase());
-      if (!record || record.otp !== String(otp).trim() || Date.now() > record.expiresAt) {
-        return res.status(400).json({
-          error: "Invalid or expired Admin OTP. Please check your inbox or request a new one."
-        });
-      }
-
-      // OTP Verified: consume OTP
-      otpStore.delete(ADMIN_EMAIL.toLowerCase());
-
+      // Password matches kailash07bolt@! Grant full admin authorization
       return res.json({
         ok: true,
         user: {
           name: "Portal Administrator",
           email: ADMIN_EMAIL,
-          role: "admin",
-          adminKey: ADMIN_KEY,
-          isAdmin: true
-        }
-      });
-    }
-
-    // 2. Fallback: Check if entered default admin key
-    const isSpecialAdmin = cleanPass === 'change-me' && (cleanId === 'admin' || cleanId === 'admin@apollo.edu.in');
-    if (isSpecialAdmin) {
-      return res.json({
-        ok: true,
-        user: {
-          name: cleanId,
-          email: `${cleanId}@apollo.edu.in`,
           role: "admin",
           adminKey: ADMIN_KEY,
           isAdmin: true
@@ -295,6 +241,10 @@ router.post('/login', async (req, res) => {
     // Existing user: update lastActive heartbeat
     await User.findByIdAndUpdate(user._id || user.id, { lastActive: new Date() });
 
+    const safeRole = user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()
+      ? 'admin'
+      : (user.role === 'staff' ? 'staff' : 'student');
+
     return res.json({
       ok: true,
       user: {
@@ -303,7 +253,9 @@ router.post('/login', async (req, res) => {
         email: user.email,
         roll: user.roll,
         phone: user.phone,
-        role: user.role || 'student',
+        role: safeRole,
+        isAdmin: safeRole === 'admin',
+        adminKey: safeRole === 'admin' ? ADMIN_KEY : undefined,
         isBanned: false
       }
     });
@@ -321,6 +273,12 @@ router.post('/register', async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
+      return res.status(403).json({
+        error: "Registration restricted: lostportalhub@gmail.com is exclusively reserved for the campus administrator."
+      });
+    }
+
     const existing = await User.findOne({ email: cleanEmail });
     if (existing) {
       return res.status(400).json({ error: "An account with this email already exists. Please sign in instead." });

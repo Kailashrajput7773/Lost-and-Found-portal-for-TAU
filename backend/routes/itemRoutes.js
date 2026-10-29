@@ -66,10 +66,12 @@ function maskContact(contact) {
   return "Protected Contact";
 }
 
-const ADMIN_KEYS = ['lostportalhub-admin-secret-2026', 'change-me', process.env.ADMIN_KEY].filter(Boolean);
+const ADMIN_KEYS = ['lostportalhub-admin-secret-2026', process.env.ADMIN_KEY].filter(k => Boolean(k) && k !== 'change-me');
 
 function checkIsAdmin(req) {
   const adminKey = req.headers["x-admin-key"];
+  const userEmail = (req.headers["x-user-email"] || req.headers["x-admin-email"] || req.query.email || "").trim().toLowerCase();
+  if (userEmail && userEmail !== 'lostportalhub@gmail.com') return false;
   return Boolean(adminKey && ADMIN_KEYS.includes(adminKey));
 }
 
