@@ -80,8 +80,7 @@ router.post('/send-otp', async (req, res) => {
     res.json({
       ok: true,
       message: `Real-time OTP dispatched successfully to ${cleanEmail}`,
-      simulated: mailResult.simulated || false,
-      ...(mailResult.simulated ? { otp } : {})
+      simulated: mailResult.simulated || false
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -132,8 +131,7 @@ router.post('/login', async (req, res) => {
           email: ADMIN_EMAIL,
           purpose: 'admin_login',
           simulated: mailResult.simulated || false,
-          message: `Admin 2FA Security Check: An OTP has been sent to ${ADMIN_EMAIL}.`,
-          ...(mailResult.simulated ? { otp: adminOtp } : {})
+          message: `Admin 2FA Security Check: An OTP has been sent to ${ADMIN_EMAIL}.`
         });
       }
 
@@ -248,8 +246,7 @@ router.post('/login', async (req, res) => {
         email: userEmail,
         purpose: 'user_login',
         simulated: mailResult.simulated || false,
-        message: `Real-time OTP dispatched to ${userEmail}. Please verify your passcode to sign in.`,
-        ...(mailResult.simulated ? { otp: loginOtp } : {})
+        message: `Real-time OTP dispatched to ${userEmail}. Please verify your passcode to sign in.`
       });
     }
 
@@ -360,8 +357,7 @@ router.post('/register', async (req, res) => {
         email: cleanEmail,
         purpose: 'user_register',
         simulated: mailResult.simulated || false,
-        message: `Verification OTP dispatched to ${cleanEmail}. Please check your inbox to complete registration.`,
-        ...(mailResult.simulated ? { otp: regOtp } : {})
+        message: `Verification OTP dispatched to ${cleanEmail}. Please check your inbox to complete registration.`
       });
     }
 
@@ -451,6 +447,187 @@ router.post('/report-user', async (req, res) => {
     }
 
     res.json({ ok: true, message: "Report submitted to campus administration for investigation." });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// FORGOT & RESET PASSWORD FLOW
+// ==========================================
+
+// Step 1: Request Password Reset OTP
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier) {
+      return res.status(400).json({ error: "Please provide your campus email address or roll number." });
+    }
+
+    const cleanId = String(identifier).trim().toLowerCase();
+
+    // Prevent overriding admin password via forgot password flow
+    if (cleanId === ADMIN_EMAIL.toLowerCase()) {
+      return res.status(400).json({
+        error: "Administrator credentials must be configured securely via server environment settings."
+      });
+    }
+
+    let user = await User.findOne({ email: cleanId });
+    if (!user) {
+      user = await User.findOne({ roll: cleanId });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        error: "No account found with this email or roll number. Please check your credentials or register."
+      });
+    }
+
+    if (user.isBanned) {
+      return res.status(403).json({
+        error: "This account has been suspended by campus administration.",
+        isBanned: true
+      });
+    }
+
+    const userEmail = (user.email || '').toLowerCase().trim();
+    const otp = generateOtp();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    otpStore.set(userEmail, {
+      otp,
+      expiresAt,
+      purpose: 'reset_password',
+      userId: user._id || user.id,
+      email: userEmail,
+      verified: false
+    });
+
+    const mailResult = await sendOtpEmail({
+      to: userEmail,
+      otp,
+      purpose: 'reset_password',
+      name: user.name || 'Campus Member'
+    });
+
+    if (!mailResult.success) {
+      return res.status(500).json({
+        ok: false,
+        error: `Failed to deliver password reset OTP to ${userEmail}: ${mailResult.error || 'SMTP delivery failure'}.`
+      });
+    }
+
+    res.json({
+      ok: true,
+      email: userEmail,
+      message: `A 6-digit password reset code has been sent to ${userEmail}.`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Step 2: Verify Password Reset OTP
+router.post('/verify-reset-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ error: "Email and 6-digit OTP code are required." });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanOtp = String(otp).trim();
+    const record = otpStore.get(cleanEmail);
+
+    if (!record || record.purpose !== 'reset_password') {
+      return res.status(400).json({
+        error: "No active password reset request found for this email. Please request a new code."
+      });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(cleanEmail);
+      return res.status(400).json({
+        error: "Your verification code has expired. Please request a new password reset code."
+      });
+    }
+
+    if (record.otp !== cleanOtp) {
+      return res.status(400).json({
+        error: "Incorrect verification code. Please check your email inbox and enter the 6-digit OTP."
+      });
+    }
+
+    // Mark as verified so the user can proceed to set a new password
+    record.verified = true;
+    otpStore.set(cleanEmail, record);
+
+    res.json({
+      ok: true,
+      email: cleanEmail,
+      message: "Verification code confirmed. You may now enter your new password."
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Step 3: Complete Password Reset
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: "Email, OTP verification code, and new password are required." });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanOtp = String(otp).trim();
+    const cleanNewPass = String(newPassword).trim();
+
+    if (cleanNewPass.length < 4) {
+      return res.status(400).json({ error: "Password must be at least 4 characters long." });
+    }
+
+    const record = otpStore.get(cleanEmail);
+    if (!record || record.purpose !== 'reset_password') {
+      return res.status(400).json({
+        error: "No active password reset session found. Please request a new reset code."
+      });
+    }
+
+    if (Date.now() > record.expiresAt) {
+      otpStore.delete(cleanEmail);
+      return res.status(400).json({
+        error: "Your password reset session has expired. Please request a new code."
+      });
+    }
+
+    if (record.otp !== cleanOtp) {
+      return res.status(400).json({
+        error: "Invalid verification code. Please verify the code sent to your email."
+      });
+    }
+
+    // Update password in database
+    await User.findByIdAndUpdate(record.userId, { password: cleanNewPass });
+
+    // Also update document instance if available
+    const user = await User.findOne({ email: cleanEmail });
+    if (user) {
+      user.password = cleanNewPass;
+      if (typeof user.save === 'function') {
+        try { await user.save(); } catch (e) {}
+      }
+    }
+
+    // Clear used OTP session
+    otpStore.delete(cleanEmail);
+
+    res.json({
+      ok: true,
+      message: "Your password has been successfully reset! You can now log in with your new password."
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
