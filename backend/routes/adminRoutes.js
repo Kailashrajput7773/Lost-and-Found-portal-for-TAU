@@ -1,16 +1,26 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const Item = require('../models/Item');
 const User = require('../models/User');
 const Allegation = require('../models/Allegation');
 
-const ADMIN_KEYS = ['lostportalhub-admin-secret-2026', 'change-me', process.env.ADMIN_KEY].filter(Boolean);
+const ADMIN_EMAIL = 'lostportalhub@gmail.com';
+const ADMIN_KEYS = ['lostportalhub-admin-secret-2026', process.env.ADMIN_KEY].filter(k => Boolean(k) && k !== 'change-me');
 
-// Middleware to check admin key
+// Middleware to strictly enforce administrator authority (ONLY lostportalhub@gmail.com)
 const checkAdmin = (req, res, next) => {
   const adminKey = req.headers["x-admin-key"];
+  const callerEmail = (req.headers["x-user-email"] || req.headers["x-admin-email"] || req.query.email || "").trim().toLowerCase();
+
+  // If caller email is provided, strictly block any email other than lostportalhub@gmail.com
+  if (callerEmail && callerEmail !== ADMIN_EMAIL.toLowerCase()) {
+    return res.status(403).json({
+      error: "Access Denied: Administrative authority is exclusively reserved for lostportalhub@gmail.com."
+    });
+  }
+
   if (!adminKey || !ADMIN_KEYS.includes(adminKey)) {
-    return res.status(403).json({ error: "Forbidden: Administrator access required" });
+    return res.status(403).json({ error: "Forbidden: Valid administrator secret key is required" });
   }
   next();
 };

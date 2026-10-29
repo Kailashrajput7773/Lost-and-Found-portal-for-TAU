@@ -25,21 +25,38 @@ const Admin = ({ user }) => {
   const [actionLoading, setActionLoading] = useState(null);
 
   const navigate = useNavigate();
+  const ADMIN_AUTHORIZED_EMAIL = 'lostportalhub@gmail.com';
+  const isAuthorizedAdmin = Boolean(
+    user &&
+    user.email?.trim().toLowerCase() === ADMIN_AUTHORIZED_EMAIL &&
+    (user.role === 'admin' || user.isAdmin)
+  );
+
   const adminKey = user?.adminKey || "lostportalhub-admin-secret-2026";
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && !user.isAdmin)) {
+    if (!user) {
       navigate('/login');
+      return;
+    }
+    if (!isAuthorizedAdmin) {
+      setLoading(false);
       return;
     }
     fetchAllAdminData();
     const interval = setInterval(fetchAllAdminData, 8000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, isAuthorizedAdmin]);
 
   const fetchAllAdminData = async () => {
+    if (!isAuthorizedAdmin) return;
     try {
-      const config = { headers: { 'x-admin-key': adminKey } };
+      const config = {
+        headers: {
+          'x-admin-key': adminKey,
+          'x-user-email': user?.email || ADMIN_AUTHORIZED_EMAIL
+        }
+      };
       const [statsRes, usersRes, allegationsRes, itemsRes] = await Promise.all([
         api.get('/api/admin/analytics', config).catch(() => ({ data: { ok: false } })),
         api.get('/api/admin/users', config).catch(() => ({ data: { ok: false } })),
@@ -71,7 +88,12 @@ const Admin = ({ user }) => {
       const res = await api.patch(
         `/api/admin/users/${targetUser.id}/ban`,
         { isBanned: shouldBan, banReason: shouldBan ? "Policy violation" : "" },
-        { headers: { 'x-admin-key': adminKey } }
+        {
+          headers: {
+            'x-admin-key': adminKey,
+            'x-user-email': user?.email || ADMIN_AUTHORIZED_EMAIL
+          }
+        }
       );
 
       if (res.data.ok) {
@@ -91,7 +113,10 @@ const Admin = ({ user }) => {
     if (!window.confirm("Permanently delete this campus listing?")) return;
     try {
       await api.delete(`/api/admin/delete/${itemId}`, {
-        headers: { 'x-admin-key': adminKey }
+        headers: {
+          'x-admin-key': adminKey,
+          'x-user-email': user?.email || ADMIN_AUTHORIZED_EMAIL
+        }
       });
       fetchAllAdminData();
     } catch (err) {
@@ -112,6 +137,90 @@ const Admin = ({ user }) => {
     if (userFilter === 'banned') return u.isBanned;
     return true;
   });
+
+  if (!isAuthorizedAdmin) {
+    return (
+      <section className="section" style={{ minHeight: '85vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="container" style={{ maxWidth: '580px', margin: '0 auto', textAlign: 'center' }}>
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              borderRadius: '20px',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              boxShadow: '0 12px 40px rgba(239, 68, 68, 0.08)',
+              padding: '48px 36px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '18px'
+            }}
+          >
+            <div
+              style={{
+                width: '76px',
+                height: '76px',
+                borderRadius: '50%',
+                background: 'rgba(239, 68, 68, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '36px',
+                border: '2px solid rgba(239, 68, 68, 0.3)'
+              }}
+            >
+              🛡️
+            </div>
+
+            <div style={{ display: 'inline-block', padding: '4px 14px', borderRadius: '20px', background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              Exclusive Access Restricted
+            </div>
+
+            <h1 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-heading)', margin: 0, letterSpacing: '-0.4px' }}>
+              Administrative Access Denied
+            </h1>
+
+            <p style={{ fontSize: '14.5px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+              The Campus Admin Control Center is strictly restricted to designated portal administration.
+              Only <strong style={{ color: 'var(--text-heading)' }}>lostportalhub@gmail.com</strong> is authorized to view or manage this console.
+            </p>
+
+            <div
+              style={{
+                width: '100%',
+                background: 'var(--bg-muted)',
+                padding: '14px 18px',
+                borderRadius: '12px',
+                border: '1px solid var(--border-subtle)',
+                fontSize: '13px',
+                color: 'var(--text-muted)',
+                textAlign: 'left'
+              }}
+            >
+              <div>Current Signed-in Account: <strong style={{ color: 'var(--text-main)' }}>{user ? (user.email || user.name) : 'Guest (Not Signed In)'}</strong></div>
+              <div style={{ fontSize: '12px', marginTop: '4px', color: '#dc2626', fontWeight: 600 }}>⛔ Status: Unauthorized for administrative operations</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', width: '100%', marginTop: '8px' }}>
+              <button
+                onClick={() => navigate('/login')}
+                className="btn btn-primary"
+                style={{ minHeight: '44px', padding: '10px 22px', fontWeight: 700, fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                🔐 Sign In as Administrator
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="btn btn-secondary"
+                style={{ minHeight: '44px', padding: '10px 22px', fontWeight: 600, fontSize: '14px' }}
+              >
+                ← Return to Campus Home
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="section" style={{ minHeight: '88vh', background: 'var(--bg-main)' }}>
