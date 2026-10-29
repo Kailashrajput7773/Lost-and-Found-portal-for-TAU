@@ -100,6 +100,9 @@ const Navbar = ({ theme, toggleTheme, user, setUser }) => {
             <Link className={`nav-link ${location.pathname === '/safetag' ? 'active' : ''}`} to="/safetag" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <span>🏷️</span> SafeTag™
             </Link>
+            <Link className={`nav-link ${location.pathname === '/reunited' ? 'active' : ''}`} to="/reunited" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <span>🎉</span> Reunited &amp; Reviews
+            </Link>
           </nav>
 
           {/* Desktop Actions */}
@@ -236,6 +239,9 @@ const Navbar = ({ theme, toggleTheme, user, setUser }) => {
             )}
             <Link className={`nav-link ${location.pathname === '/safetag' ? 'active' : ''}`} to="/safetag" onClick={closeMobile}>
               <span>🏷️</span> SafeTag™ QR Sticker
+            </Link>
+            <Link className={`nav-link ${location.pathname === '/reunited' ? 'active' : ''}`} to="/reunited" onClick={closeMobile}>
+              <span>🎉</span> Reunited Belongings &amp; Reviews
             </Link>
 
             <div style={{ display: 'flex', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)', alignItems: 'center', justifyContent: 'space-between' }}>

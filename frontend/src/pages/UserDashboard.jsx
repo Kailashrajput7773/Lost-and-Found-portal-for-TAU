@@ -1178,14 +1178,29 @@ const UserDashboard = ({ user, defaultTab = 'overview' }) => {
                     {claim.status === 'approved' && (
                       <div style={{
                         marginTop: '12px',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
                         background: 'var(--success-bg)',
                         color: 'var(--success)',
                         fontSize: '13px',
-                        fontWeight: 600
+                        fontWeight: 600,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px'
                       }}>
-                        🎉 Verified Owner! Direct Finder Contact: <strong>{claim.itemContact}</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                          <span>🎉 Verified Owner! Direct Finder Contact: <strong>{claim.itemContact}</strong></span>
+                          <Link
+                            to={`/items/${claim.itemId}`}
+                            className="btn btn-primary"
+                            style={{ fontSize: '11.5px', padding: '4px 10px', background: '#0d9488', borderColor: '#0d9488' }}
+                          >
+                            View Handover Passcode 🤝
+                          </Link>
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 400 }}>
+                          Quote your 6-digit passcode or show your Student ID when collecting your belongings in person.
+                        </div>
                       </div>
                     )}
                   </div>

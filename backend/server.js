@@ -7,6 +7,7 @@ const connectDB = require('./config/db');
 const itemRoutes = require('./routes/itemRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const authRoutes = require('./routes/authRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 dotenv.config();
 
@@ -62,6 +63,7 @@ app.use("/uploads", express.static(UPLOAD_DIR));
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 app.get("/api/health", (_, res) => res.json({ ok: true, status: "healthy", timestamp: new Date().toISOString() }));
 app.get("/api", (_, res) => res.json({ ok: true, name: "The Apollo University Lost & Found API", status: "operational" }));

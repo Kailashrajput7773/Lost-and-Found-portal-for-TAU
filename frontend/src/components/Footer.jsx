@@ -57,6 +57,7 @@ const Footer = () => {
                 <Link to="/report-lost" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Report Lost Item</Link>
                 <Link to="/report-found" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Report Found Item</Link>
                 <Link to="/safetag" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>SafeTag™ QR Protection</Link>
+                <Link to="/reunited" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Reunited &amp; Reviews</Link>
               </div>
             </div>
 

@@ -2148,16 +2148,19 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: 4px;
 }
 
-/* @media print Rule: Ensure only printable flyer is printed on A4 */
+/* @media print Rule: Ensure only printable flyer or handover certificate is printed on A4 */
 @media print {
   body * {
     visibility: hidden;
   }
   .printable-flyer-sheet,
-  .printable-flyer-sheet * {
+  .printable-flyer-sheet *,
+  #certificate-print-sheet,
+  #certificate-print-sheet * {
     visibility: visible;
   }
-  .printable-flyer-sheet {
+  .printable-flyer-sheet,
+  #certificate-print-sheet {
     position: absolute;
     left: 0;
     top: 0;
@@ -2175,4 +2178,53 @@ h1, h2, h3, h4, h5, h6 {
     display: none !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   18. REUNITED GALLERY & CAMPUS REVIEWS STYLING
+   -------------------------------------------------------------------------- */
+.reunited-page {
+  min-height: 85vh;
+  padding-bottom: 60px;
+}
+
+.reunited-card {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.reunited-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.06);
+  border-color: rgba(13, 148, 136, 0.4) !important;
+}
+
+.review-card {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.review-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+.star-interactive {
+  transition: transform 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+
+.star-interactive:hover {
+  transform: scale(1.25);
+}
+
+.handover-verified-badge {
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%);
+  border: 1px solid rgba(13, 148, 136, 0.3);
+  color: #0d9488;
+}
+
+[data-theme="dark"] .handover-verified-badge {
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.25) 0%, rgba(16, 185, 129, 0.25) 100%);
+  border-color: rgba(13, 148, 136, 0.5);
+  color: #2dd4bf;
+}
+
 
