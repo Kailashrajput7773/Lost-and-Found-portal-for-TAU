@@ -42,11 +42,23 @@
     "img": "",
     "approved": true,
     "type": "lost",
-    "status": "active",
+    "status": "resolved",
     "question": "",
-    "claimedBy": "",
+    "claimedBy": "Kailash Rajput",
     "claimSubmissions": [],
-    "createdAt": "2026-10-11T16:45:00.000Z"
+    "createdAt": "2026-10-11T16:45:00.000Z",
+    "handover": {
+      "verified": true,
+      "handoverCode": "",
+      "recipientName": "Kailash Rajput",
+      "recipientRoll": "21BCE1001",
+      "recipientContact": "kailash@apollo.edu.in",
+      "handedOverBy": "kailash.student@apollo.edu.in",
+      "handoverLocation": "Central Library Help Desk",
+      "handedOverAt": "2026-10-29T09:00:57.337Z",
+      "receiptNumber": "TAU-REC-2026-PH03J",
+      "notes": "Handed over in person after matching student ID card."
+    }
   },
   {
     "_id": "tau-item-003",

@@ -12,6 +12,7 @@ import SafeTag from './pages/SafeTag';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
 import UserDashboard from './pages/UserDashboard';
+import Reunited from './pages/Reunited';
 import { ToastProvider } from './components/Toast';
 import './index.css';
 
@@ -84,6 +85,8 @@ function App() {
             <Route path="/item/:id" element={<ItemDetails user={user} />} />
             <Route path="/safetag" element={<SafeTag user={user} />} />
             <Route path="/admin" element={<Admin user={user} />} />
+            <Route path="/reunited" element={<Reunited user={user} />} />
+            <Route path="/reviews" element={<Reunited user={user} />} />
             <Route path="/dashboard" element={<UserDashboard user={user} defaultTab="overview" />} />
             <Route path="/my-reports" element={<UserDashboard user={user} defaultTab="reports" />} />
             <Route path="/login" element={<Login setUser={setUser} />} />

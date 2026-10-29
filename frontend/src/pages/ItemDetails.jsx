@@ -26,7 +26,11 @@ import {
   ChevronRight,
   Printer,
   Maximize2,
-  Building
+  Building,
+  Award,
+  FileCheck,
+  QrCode,
+  Download
 } from 'lucide-react';
 import NoticeboardFlyerModal from '../components/NoticeboardFlyerModal';
 import ImageLightboxModal from '../components/ImageLightboxModal';
@@ -79,6 +83,22 @@ const ItemDetails = ({ user }) => {
   // Smart Matches State
   const [smartMatches, setSmartMatches] = useState([]);
 
+  // Physical Handover Verification & Certificate States
+  const [showHandoverModal, setShowHandoverModal] = useState(false);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [handoverFormData, setHandoverFormData] = useState({
+    recipientName: '',
+    recipientRoll: '',
+    recipientContact: '',
+    handoverLocation: '',
+    handoverCode: '',
+    notes: ''
+  });
+  const [handoverSubmitting, setHandoverSubmitting] = useState(false);
+  const [handoverError, setHandoverError] = useState(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
+  const [myHandoverCode, setMyHandoverCode] = useState(null);
+
   // Close modals on Escape key press
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -87,11 +107,13 @@ const ItemDetails = ({ user }) => {
         if (reviewingClaim) setReviewingClaim(null);
         if (showFlyerModal) setShowFlyerModal(false);
         if (showLightboxModal) setShowLightboxModal(false);
+        if (showHandoverModal) setShowHandoverModal(false);
+        if (showCertificateModal) setShowCertificateModal(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showClaimModal, reviewingClaim, showFlyerModal, showLightboxModal]);
+  }, [showClaimModal, reviewingClaim, showFlyerModal, showLightboxModal, showHandoverModal, showCertificateModal]);
 
   // --------------------------------------------------------------------------
   // 1. Fetch Item Details
@@ -259,6 +281,84 @@ const ItemDetails = ({ user }) => {
       });
     } finally {
       setReviewSubmitting(false);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // 6. Handover Verification Handlers
+  // --------------------------------------------------------------------------
+  const handleOpenHandoverModal = (claimant = null) => {
+    setHandoverFormData({
+      recipientName: claimant?.claimantName || item?.claimedBy || '',
+      recipientRoll: claimant?.claimantRoll || '',
+      recipientContact: claimant?.claimantContact || '',
+      handoverLocation: item?.location || 'Campus Front Desk',
+      handoverCode: '',
+      notes: ''
+    });
+    setHandoverError(null);
+    setShowHandoverModal(true);
+  };
+
+  const handleGenerateHandoverCode = async () => {
+    setGeneratingCode(true);
+    try {
+      const res = await api.post(`/api/items/${id}/handover/generate-code`);
+      if (res.data?.ok) {
+        setMyHandoverCode(res.data.handoverCode);
+        toast?.success
+          ? toast.success('6-digit handover code generated! Present this when receiving your item.')
+          : alert('6-digit handover code generated!');
+        fetchItemDetails();
+      } else {
+        alert(res.data?.error || 'Failed to generate code.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Could not generate code.');
+    } finally {
+      setGeneratingCode(false);
+    }
+  };
+
+  const handleVerifyHandoverSubmit = async (e) => {
+    e.preventDefault();
+    if (handoverSubmitting) return;
+
+    if (!handoverFormData.recipientName.trim()) {
+      setHandoverError('Please enter the recipient or owner name.');
+      return;
+    }
+
+    setHandoverSubmitting(true);
+    setHandoverError(null);
+
+    try {
+      const headers = {};
+      if (user?.adminKey) headers['x-admin-key'] = user.adminKey;
+      if (user?.email) headers['x-user-email'] = user.email;
+      if (user?.phone) headers['x-user-phone'] = user.phone;
+
+      const res = await api.post(
+        `/api/items/${id}/handover/verify`,
+        handoverFormData,
+        { headers }
+      );
+
+      if (res.data?.ok) {
+        confetti({ particleCount: 80, spread: 75, origin: { y: 0.6 } });
+        toast?.success
+          ? toast.success('Physical handover successfully verified & certificate generated!')
+          : alert('Handover verified successfully!');
+        setShowHandoverModal(false);
+        fetchItemDetails();
+        setShowCertificateModal(true);
+      } else {
+        setHandoverError(res.data?.error || 'Handover verification failed.');
+      }
+    } catch (err) {
+      setHandoverError(err.response?.data?.error || 'Error validating handover details.');
+    } finally {
+      setHandoverSubmitting(false);
     }
   };
 
@@ -748,12 +848,53 @@ const ItemDetails = ({ user }) => {
               {/* Case 1: Item is resolved */}
               {isResolved ? (
                 <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                  <div style={{ display: 'inline-flex', padding: '10px 16px', borderRadius: '10px', background: 'var(--success-bg)', color: 'var(--success)', fontWeight: 700, fontSize: '14px', alignItems: 'center', gap: '8px' }}>
-                    <CheckCircle2 size={18} /> Reunited with {item.claimedBy || 'Verified Owner'}
+                  <div style={{ display: 'inline-flex', padding: '10px 18px', borderRadius: '12px', background: 'var(--success-bg)', color: 'var(--success)', fontWeight: 800, fontSize: '15px', alignItems: 'center', gap: '8px' }}>
+                    <CheckCircle2 size={20} /> Reunited with {item.handover?.recipientName || item.claimedBy || 'Verified Owner'}
                   </div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', marginBottom: 0 }}>
-                    This case is resolved. New ownership claims are closed for this listing.
-                  </p>
+
+                  {/* Handover Verification Summary Card */}
+                  <div style={{
+                    marginTop: '16px',
+                    background: 'var(--bg-muted)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid var(--border-color)',
+                    textAlign: 'left',
+                    fontSize: '13px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <ShieldCheck size={16} color="var(--success)" /> Handover Officially Stamped & Verified
+                      </span>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary)', background: 'var(--bg-card)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                        {item.handover?.receiptNumber || 'TAU-REC-VERIFIED'}
+                      </span>
+                    </div>
+                    <div style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                      <div>Recipient: <strong style={{ color: 'var(--text-main)' }}>{item.handover?.recipientName || item.claimedBy || 'Verified Owner'}</strong> {item.handover?.recipientRoll && `(${item.handover.recipientRoll})`}</div>
+                      <div>Campus Location: <strong style={{ color: 'var(--text-main)' }}>{item.handover?.handoverLocation || item.location}</strong></div>
+                      {item.handover?.handedOverAt && (
+                        <div>Verification Date: <strong style={{ color: 'var(--text-main)' }}>{new Date(item.handover.handedOverAt).toLocaleString()}</strong></div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setShowCertificateModal(true)}
+                      className="btn btn-primary"
+                      style={{ fontSize: '13px', padding: '9px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <FileCheck size={15} /> View Official Handover Certificate
+                    </button>
+                    <Link
+                      to="/reunited"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '13px', padding: '9px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      Browse Reunited Gallery
+                    </Link>
+                  </div>
                 </div>
               ) : myClaim ? (
                 /* Case 2: Viewer has already submitted a claim */
@@ -781,6 +922,47 @@ const ItemDetails = ({ user }) => {
                         <div style={{ marginTop: '6px', color: 'var(--text-muted)' }}>
                           Direct Finder Contact: <strong>{item.contact}</strong>
                         </div>
+
+                        {/* Handover Passcode Box */}
+                        <div style={{
+                          marginTop: '14px',
+                          background: 'var(--bg-card)',
+                          border: '1.5px dashed var(--primary)',
+                          borderRadius: '12px',
+                          padding: '16px',
+                          textAlign: 'center'
+                        }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                            Your 6-Digit Handover Verification Passcode
+                          </div>
+                          <div style={{ fontSize: '26px', fontWeight: 800, letterSpacing: '8px', color: 'var(--text-main)', fontFamily: 'monospace', margin: '8px 0' }}>
+                            {myHandoverCode || item.handover?.handoverCode || '------'}
+                          </div>
+                          <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
+                            Show or quote this 6-digit passcode to the finder/custodian when meeting in-person on campus to verify handoff and claim receipt.
+                          </p>
+                          {(!myHandoverCode && !item.handover?.handoverCode) ? (
+                            <button
+                              onClick={handleGenerateHandoverCode}
+                              disabled={generatingCode}
+                              className="btn btn-primary"
+                              style={{ fontSize: '12px', padding: '6px 14px' }}
+                            >
+                              {generatingCode ? 'Generating...' : 'Generate My Handover Passcode'}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(myHandoverCode || item.handover?.handoverCode);
+                                toast?.success ? toast.success('Passcode copied to clipboard!') : alert('Copied!');
+                              }}
+                              className="btn btn-secondary"
+                              style={{ fontSize: '12px', padding: '6px 14px' }}
+                            >
+                              Copy Passcode
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ) : myClaim.status === 'rejected' ? (
                       <div>
@@ -806,18 +988,25 @@ const ItemDetails = ({ user }) => {
                     </span>
                   </div>
                   <p style={{ fontSize: '13.5px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                    You reported this item. You can review submitted claims below or mark it as reunited when returned.
+                    You reported this item. When you meet the owner on campus, verify their identity or 6-digit code to complete physical handover and generate an official receipt.
                   </p>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => handleOpenHandoverModal()}
+                      className="btn btn-primary"
+                      style={{ fontSize: '13.5px', padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <ShieldCheck size={16} /> Verify Physical Handover 🤝
+                    </button>
                     <button
                       onClick={() => {
                         setReviewingClaim({ id: 'manual-resolve' });
                         setReviewAction('approve');
                       }}
-                      className="btn btn-primary"
+                      className="btn btn-secondary"
                       style={{ fontSize: '13.5px', padding: '10px 18px' }}
                     >
-                      <CheckCircle2 size={16} /> Mark as Reunited 🎉
+                      <CheckCircle2 size={16} /> Quick Mark Reunited
                     </button>
                   </div>
                 </div>
@@ -932,6 +1121,19 @@ const ItemDetails = ({ user }) => {
                               style={{ fontSize: '12px', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--error)' }}
                             >
                               <X size={14} /> Reject Claim
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Actions for Approved Claims (Physical Handover) */}
+                        {claim.status === 'approved' && !isResolved && (
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                            <button
+                              onClick={() => handleOpenHandoverModal(claim)}
+                              className="btn btn-primary"
+                              style={{ fontSize: '12px', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <ShieldCheck size={14} /> Verify Handover to {claim.claimantName || 'Claimant'} 🤝
                             </button>
                           </div>
                         )}
@@ -1316,6 +1518,386 @@ const ItemDetails = ({ user }) => {
           altText={item.name}
           onClose={() => setShowLightboxModal(false)}
         />
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Physical Handover Verification Modal */}
+      {/* ------------------------------------------------------------------ */}
+      {showHandoverModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px'
+          }}
+          onClick={() => setShowHandoverModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="handover-modal-title"
+            style={{
+              background: 'var(--bg-card)',
+              borderRadius: '16px',
+              maxWidth: '520px',
+              width: '100%',
+              padding: '24px',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+              maxHeight: '92vh',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: 'var(--success)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <ShieldCheck size={22} />
+                </div>
+                <div>
+                  <h3 id="handover-modal-title" style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                    Verify Physical Handover
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+                    Officially confirm returning belongings to owner
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHandoverModal(false)}
+                className="btn btn-secondary"
+                style={{ padding: '6px', borderRadius: '8px' }}
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {handoverError && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                background: 'var(--error-bg)',
+                color: 'var(--error)',
+                fontSize: '13px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <AlertCircle size={16} />
+                <span>{handoverError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyHandoverSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label htmlFor="handover-recipient-name" style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '5px' }}>
+                  Recipient / Genuine Owner Full Name *
+                </label>
+                <input
+                  id="handover-recipient-name"
+                  type="text"
+                  required
+                  className="input"
+                  placeholder="e.g. Kailash Rajput or Rahul Sharma"
+                  value={handoverFormData.recipientName}
+                  onChange={(e) => setHandoverFormData({ ...handoverFormData, recipientName: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+                <div>
+                  <label htmlFor="handover-recipient-roll" style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '5px' }}>
+                    Student Roll No / Campus ID (Optional)
+                  </label>
+                  <input
+                    id="handover-recipient-roll"
+                    type="text"
+                    className="input"
+                    placeholder="e.g. 21BCE1042"
+                    value={handoverFormData.recipientRoll}
+                    onChange={(e) => setHandoverFormData({ ...handoverFormData, recipientRoll: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="handover-recipient-contact" style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '5px' }}>
+                    Recipient Phone / Email (Optional)
+                  </label>
+                  <input
+                    id="handover-recipient-contact"
+                    type="text"
+                    className="input"
+                    placeholder="e.g. 9876543210"
+                    value={handoverFormData.recipientContact}
+                    onChange={(e) => setHandoverFormData({ ...handoverFormData, recipientContact: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="handover-location" style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '5px' }}>
+                  Handover Campus Location *
+                </label>
+                <input
+                  id="handover-location"
+                  type="text"
+                  required
+                  className="input"
+                  placeholder="e.g. Central Library Front Desk, Student Center, Block A"
+                  value={handoverFormData.handoverLocation}
+                  onChange={(e) => setHandoverFormData({ ...handoverFormData, handoverLocation: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="handover-code" style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '5px' }}>
+                  6-Digit Handover Verification Passcode (If provided by claimant)
+                </label>
+                <input
+                  id="handover-code"
+                  type="text"
+                  maxLength={6}
+                  className="input"
+                  placeholder="e.g. 842195 (Optional if verified with Student ID)"
+                  value={handoverFormData.handoverCode}
+                  onChange={(e) => setHandoverFormData({ ...handoverFormData, handoverCode: e.target.value })}
+                  style={{ letterSpacing: '3px', fontWeight: 700 }}
+                />
+                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  Matches against the claimant's registered security token if one was issued.
+                </span>
+              </div>
+
+              <div>
+                <label htmlFor="handover-notes" style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '5px' }}>
+                  Handover Verification Remarks (Optional)
+                </label>
+                <textarea
+                  id="handover-notes"
+                  className="textarea"
+                  rows={2}
+                  placeholder="e.g. Identity verified with college ID card. Belongings inspected and returned in original condition."
+                  value={handoverFormData.notes}
+                  onChange={(e) => setHandoverFormData({ ...handoverFormData, notes: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowHandoverModal(false)}
+                  className="btn btn-secondary"
+                  style={{ flex: 1, padding: '10px' }}
+                  disabled={handoverSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 2, padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  disabled={handoverSubmitting}
+                >
+                  {handoverSubmitting ? (
+                    'Verifying Handover...'
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} /> Confirm Handover &amp; Issue Receipt
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Digital Handover Certificate Modal */}
+      {/* ------------------------------------------------------------------ */}
+      {showCertificateModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(5px)',
+            WebkitBackdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px'
+          }}
+          onClick={() => setShowCertificateModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cert-title"
+            style={{
+              background: '#ffffff',
+              color: '#0f172a',
+              borderRadius: '16px',
+              maxWidth: '620px',
+              width: '100%',
+              padding: '28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+              maxHeight: '92vh',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Toolbar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }} className="no-print">
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#0d9488', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={16} /> Official Campus Verification
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => window.print()}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: '#0f172a', borderColor: '#cbd5e1' }}
+                >
+                  <Printer size={14} /> Print / Save PDF
+                </button>
+                <button
+                  onClick={() => setShowCertificateModal(false)}
+                  className="btn btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '12px', color: '#0f172a', borderColor: '#cbd5e1' }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Certificate Sheet */}
+            <div id="certificate-print-sheet" style={{
+              border: '2px solid #0f766e',
+              borderRadius: '12px',
+              padding: '24px 20px',
+              background: '#f8fafc',
+              position: 'relative'
+            }}>
+              {/* Header with Crest */}
+              <div style={{ textAlign: 'center', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '16px', marginBottom: '16px' }}>
+                <img
+                  src="/apollo-university-transparent.png"
+                  alt="The Apollo University"
+                  style={{ height: '44px', width: 'auto', marginBottom: '6px' }}
+                />
+                <div style={{ fontSize: '16px', fontWeight: 900, letterSpacing: '0.05em', color: '#0f172a' }}>
+                  THE APOLLO UNIVERSITY
+                </div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0d9488', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  Student Affairs • Lost &amp; Found Resolution Center
+                </div>
+                <h2 id="cert-title" style={{ fontSize: '17px', fontWeight: 800, color: '#0f766e', margin: '10px 0 2px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Certificate of Physical Handover
+                </h2>
+                <div style={{ fontSize: '12px', color: '#64748b', fontFamily: 'monospace' }}>
+                  Receipt Reference: <strong style={{ color: '#0f172a' }}>{item.handover?.receiptNumber || 'TAU-REC-VERIFIED'}</strong>
+                </div>
+              </div>
+
+              {/* Item Details */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '12.5px', marginBottom: '16px' }}>
+                <div style={{ background: '#ffffff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Item Description</div>
+                  <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '14px', marginTop: '2px' }}>{item.name}</div>
+                  <div style={{ color: '#0d9488', fontSize: '11.5px' }}>Category: {item.category}</div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Handover Location</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '13px', marginTop: '2px' }}>
+                    {item.handover?.handoverLocation || item.location || 'Campus Front Desk'}
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: '11.5px' }}>
+                    Stamptime: {item.handover?.handedOverAt ? new Date(item.handover.handedOverAt).toLocaleDateString() : new Date().toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Parties Box */}
+              <div style={{ background: '#ffffff', padding: '12px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12.5px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Handed Over To (Recipient)</div>
+                    <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '13.5px' }}>
+                      {item.handover?.recipientName || item.claimedBy || 'Verified Owner'}
+                    </div>
+                    {item.handover?.recipientRoll && (
+                      <div style={{ color: '#64748b', fontSize: '12px' }}>Student Roll: {item.handover.recipientRoll}</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Handed Over By (Finder / Custody)</div>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '13.5px' }}>
+                      {item.handover?.handedOverBy || item.contact || 'Campus Member'}
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: '12px' }}>Status: Custody Transferred</div>
+                  </div>
+                </div>
+
+                {item.handover?.notes && (
+                  <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #e2e8f0', color: '#475569', fontStyle: 'italic', fontSize: '12px' }}>
+                    Remarks: "{item.handover.notes}"
+                  </div>
+                )}
+              </div>
+
+              {/* Security Seal Footer */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1.5px solid #e2e8f0', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: '#0d9488',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Award size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase' }}>
+                      VERIFIED CAMPUS HANDOVER
+                    </div>
+                    <div style={{ fontSize: '10.5px', color: '#64748b' }}>
+                      Cryptographically Recorded on TAU Campus Hub
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#0f172a' }}>Office of Student Welfare</div>
+                  <div style={{ fontSize: '10px', color: '#64748b' }}>The Apollo University, Chittoor</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

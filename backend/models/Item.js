@@ -27,6 +27,21 @@ const itemSchema = new mongoose.Schema({
   custodyReceiptNo: { type: String, default: "" },
   claimedBy: { type: String, default: "" },
   claimSubmissions: { type: Array, default: [] },
+  handover: {
+    verified: { type: Boolean, default: false },
+    handoverCode: { type: String, default: "" },
+    handoverOtpExpires: { type: Date },
+    recipientName: { type: String, default: "" },
+    recipientRoll: { type: String, default: "" },
+    recipientContact: { type: String, default: "" },
+    handedOverBy: { type: String, default: "" },
+    handoverLocation: { type: String, default: "" },
+    handedOverAt: { type: Date },
+    receiptNumber: { type: String, default: "" },
+    notes: { type: String, default: "" },
+    rating: { type: Number, default: 5 },
+    feedback: { type: String, default: "" }
+  },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -88,6 +103,21 @@ class ItemWrapper {
     this.custodyReceiptNo = data.custodyReceiptNo || "";
     this.claimedBy = data.claimedBy || "";
     this.claimSubmissions = Array.isArray(data.claimSubmissions) ? data.claimSubmissions : [];
+    this.handover = data.handover || {
+      verified: false,
+      handoverCode: "",
+      handoverOtpExpires: null,
+      recipientName: "",
+      recipientRoll: "",
+      recipientContact: "",
+      handedOverBy: "",
+      handoverLocation: "",
+      handedOverAt: null,
+      receiptNumber: "",
+      notes: "",
+      rating: 5,
+      feedback: ""
+    };
     this.createdAt = data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString();
   }
 
@@ -143,6 +173,7 @@ class ItemWrapper {
       custodyReceiptNo: item.custodyReceiptNo || '',
       claimedBy: item.claimedBy || '',
       claimSubmissions: item.claimSubmissions || [],
+      handover: item.handover || { verified: false },
       _id: item._id || item.id,
       id: item._id || item.id
     }));
