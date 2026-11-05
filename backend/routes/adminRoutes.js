@@ -139,7 +139,7 @@ router.patch('/users/:id/ban', checkAdmin, async (req, res) => {
     const user = await User.findByIdAndUpdate(id, {
       isBanned: typeof isBanned === 'boolean' ? isBanned : true,
       banReason: banReason || (isBanned ? "Banned by Administrator for community policy violations." : "")
-    }, { new: true });
+    }, { returnDocument: 'after' });
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
@@ -168,7 +168,7 @@ router.patch('/allegations/:id/status', checkAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const updated = await Allegation.findByIdAndUpdate(id, { status }, { new: true });
+    const updated = await Allegation.findByIdAndUpdate(id, { status }, { returnDocument: 'after' });
     if (!updated) return res.status(404).json({ error: "Allegation not found" });
     res.json({ ok: true, allegation: updated });
   } catch (error) {
@@ -192,7 +192,7 @@ router.patch('/moderate/:id', checkAdmin, async (req, res) => {
     const { id } = req.params;
     const { approved } = req.body;
     if (typeof approved === 'boolean') {
-      const item = await Item.findByIdAndUpdate(id, { approved }, { new: true });
+      const item = await Item.findByIdAndUpdate(id, { approved }, { returnDocument: 'after' });
       if (!item) return res.status(404).json({ error: "Not found" });
       return res.json({ ok: true, item });
     }

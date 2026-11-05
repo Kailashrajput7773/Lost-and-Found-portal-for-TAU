@@ -112,7 +112,7 @@ class AllegationWrapper {
 
   static async findByIdAndUpdate(id, update, options = {}) {
     if (mongoose.connection.readyState === 1) {
-      return MongoAllegation.findByIdAndUpdate(id, update, { returnDocument: 'after', ...options });
+      const cleanOpts = { returnDocument: 'after', ...options }; delete cleanOpts.new; return MongoAllegation.findByIdAndUpdate(id, update, cleanOpts);
     }
     const items = readLocalAllegations();
     const index = items.findIndex(it => (it._id || it.id) === id);

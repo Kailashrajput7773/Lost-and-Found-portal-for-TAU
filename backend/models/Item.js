@@ -142,23 +142,36 @@ class ItemWrapper {
       return MongoItem.find(query);
     }
     let items = readLocalItems();
-    if (query) {
+    if (query && Object.keys(query).length > 0) {
       items = items.filter(item => {
-        if (typeof query.approved === 'boolean' && item.approved !== query.approved) return false;
-        if (query.type && item.type !== query.type) return false;
-        if (query.status && (item.status || 'active') !== query.status) return false;
-        if (query.category && item.category !== query.category) return false;
-        if (query.location && item.location !== query.location) return false;
-        if (query.date && item.date !== query.date) return false;
-        if (Array.isArray(query.$or)) {
-          const matchesAny = query.$or.some(cond => {
-            return Object.entries(cond).some(([key, val]) => {
-              const itemVal = String(item[key] || "");
-              if (val instanceof RegExp) return val.test(itemVal);
-              return itemVal.toLowerCase().includes(String(val).toLowerCase());
+        for (const [key, val] of Object.entries(query)) {
+          if (val === undefined || val === null || val === 'all') continue;
+          if (key === '$or' && Array.isArray(val)) {
+            const matchesAny = val.some(cond => {
+              return Object.entries(cond).some(([cKey, cVal]) => {
+                const itemVal = String(item[cKey] || "");
+                if (cVal instanceof RegExp) return cVal.test(itemVal);
+                return itemVal.toLowerCase().includes(String(cVal).toLowerCase());
+              });
             });
-          });
-          if (!matchesAny) return false;
+            if (!matchesAny) return false;
+            continue;
+          }
+          if (typeof val === 'boolean') {
+            if (Boolean(item[key]) !== val) return false;
+            continue;
+          }
+          if (val instanceof RegExp) {
+            if (!val.test(String(item[key] || ""))) return false;
+            continue;
+          }
+          if (key === '_id' || key === 'id') {
+            if (String(item._id || item.id) !== String(val)) return false;
+            continue;
+          }
+          if (String(item[key] || "") !== String(val)) {
+            return false;
+          }
         }
         return true;
       });
@@ -193,10 +206,13 @@ class ItemWrapper {
 
   static async findById(id) {
     if (mongoose.connection.readyState === 1) {
-      return MongoItem.findById(id);
+      try {
+        const doc = await MongoItem.findById(id);
+        if (doc) return doc;
+      } catch (e) {}
     }
     const items = readLocalItems();
-    const item = items.find(it => (it._id || it.id) === id);
+    const item = items.find(it => String(it._id || it.id) === String(id));
     if (!item) return null;
     return new ItemWrapper(item);
   }
@@ -211,12 +227,17 @@ class ItemWrapper {
 
   static async findByIdAndUpdate(id, update, options = {}) {
     if (mongoose.connection.readyState === 1) {
-      return MongoItem.findByIdAndUpdate(id, update, { returnDocument: 'after', ...options });
+      try {
+        const cleanOpts = { returnDocument: 'after', ...options }; delete cleanOpts.new; const doc = await MongoItem.findByIdAndUpdate(id, update, cleanOpts);
+        if (doc) return doc;
+      } catch (e) {}
     }
     const items = readLocalItems();
-    const index = items.findIndex(it => (it._id || it.id) === id);
+    const index = items.findIndex(it => String(it._id || it.id) === String(id));
     if (index === -1) return null;
-    items[index] = { ...items[index], ...update };
+    const fieldsToUpdate = update.$set ? { ...update.$set } : { ...update };
+    delete fieldsToUpdate.$set;
+    items[index] = { ...items[index], ...fieldsToUpdate };
     writeLocalItems(items);
     const updated = items[index];
     return { ...updated, _id: updated._id || updated.id, id: updated._id || updated.id };
@@ -224,10 +245,13 @@ class ItemWrapper {
 
   static async findByIdAndDelete(id) {
     if (mongoose.connection.readyState === 1) {
-      return MongoItem.findByIdAndDelete(id);
+      try {
+        const doc = await MongoItem.findByIdAndDelete(id);
+        if (doc) return doc;
+      } catch (e) {}
     }
     const items = readLocalItems();
-    const index = items.findIndex(it => (it._id || it.id) === id);
+    const index = items.findIndex(it => String(it._id || it.id) === String(id));
     if (index === -1) return null;
     const deleted = items.splice(index, 1)[0];
     writeLocalItems(items);

@@ -99,11 +99,22 @@ class ReviewWrapper {
       return MongoReview.find(query);
     }
     let reviews = readLocalReviews();
-    if (query.role) {
-      reviews = reviews.filter(r => r.role === query.role);
-    }
-    if (query.rating) {
-      reviews = reviews.filter(r => Number(r.rating) === Number(query.rating));
+    if (query && Object.keys(query).length > 0) {
+      reviews = reviews.filter(r => {
+        for (const [key, val] of Object.entries(query)) {
+          if (val === undefined || val === null || val === 'all') continue;
+          if (key === 'rating') {
+            if (Number(r.rating) !== Number(val)) return false;
+            continue;
+          }
+          if (key === '_id' || key === 'id') {
+            if (String(r._id || r.id) !== String(val)) return false;
+            continue;
+          }
+          if (String(r[key] || "") !== String(val)) return false;
+        }
+        return true;
+      });
     }
     const result = reviews.map(r => ({ ...r, _id: r._id || r.id, id: r._id || r.id }));
 
@@ -122,14 +133,17 @@ class ReviewWrapper {
 
   static async findByIdAndDelete(id) {
     if (mongoose.connection.readyState === 1) {
-      return MongoReview.findByIdAndDelete(id);
+      try {
+        const doc = await MongoReview.findByIdAndDelete(id);
+        if (doc) return doc;
+      } catch (e) {}
     }
     const reviews = readLocalReviews();
-    const index = reviews.findIndex(r => (r._id || r.id) === id);
+    const index = reviews.findIndex(r => String(r._id || r.id) === String(id));
     if (index === -1) return null;
     const deleted = reviews.splice(index, 1)[0];
     writeLocalReviews(reviews);
-    return deleted;
+    return { ...deleted, _id: deleted._id || deleted.id, id: deleted._id || deleted.id };
   }
 }
 

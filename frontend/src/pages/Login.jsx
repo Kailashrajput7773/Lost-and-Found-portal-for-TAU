@@ -97,6 +97,9 @@ const Login = ({ setUser }) => {
         setTargetEmail(res.data.email || input);
         setIsAdminSession(res.data.purpose === 'admin_login' || input.toLowerCase() === ADMIN_EMAIL.toLowerCase());
         setSuccessMsg(res.data.message || `A verification OTP has been dispatched to ${res.data.email || input}`);
+        if (res.data.simulated && res.data.otp) {
+          setLoginOtp(res.data.otp);
+        }
         setResendCooldown(30);
         setLoading(false);
         return;
@@ -169,6 +172,9 @@ const Login = ({ setUser }) => {
       if (res.data.requiresOtp) {
         setRegOtpStep(true);
         setSuccessMsg(res.data.message || `Verification OTP dispatched to ${regData.email}`);
+        if (res.data.simulated && res.data.otp) {
+          setRegOtp(res.data.otp);
+        }
         setResendCooldown(30);
       } else if (res.data.ok && res.data.user) {
         setUser(res.data.user);
@@ -247,6 +253,9 @@ const Login = ({ setUser }) => {
         setForgotEmail(res.data.email);
         setForgotStep('verify');
         setSuccessMsg(res.data.message || `A verification code was dispatched to ${res.data.email}`);
+        if (res.data.simulated && res.data.otp) {
+          setForgotOtp(res.data.otp);
+        }
         setResendCooldown(30);
       }
     } catch (err) {
