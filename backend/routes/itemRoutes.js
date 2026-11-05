@@ -976,7 +976,7 @@ router.patch('/:id/claims/:claimId', async (req, res) => {
       updates.claimedBy = targetClaim.claimantName || 'Verified Campus Owner';
     }
 
-    const updatedItem = await Item.findByIdAndUpdate(req.params.id, updates, { new: true });
+    const updatedItem = await Item.findByIdAndUpdate(req.params.id, updates, { returnDocument: 'after' });
 
     return res.json({
       ok: true,
@@ -1024,7 +1024,7 @@ router.patch('/:id/edit', async (req, res) => {
     if (custodyLocation !== undefined) updates.custodyLocation = custodyLocation.trim();
     if (custodyReceiptNo !== undefined) updates.custodyReceiptNo = custodyReceiptNo.trim();
 
-    const updated = await Item.findByIdAndUpdate(req.params.id, updates, { new: true });
+    const updated = await Item.findByIdAndUpdate(req.params.id, updates, { returnDocument: 'after' });
     return res.json({
       ok: true,
       message: "Report details updated successfully!",

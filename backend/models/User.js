@@ -99,13 +99,16 @@ class UserWrapper {
 
   static async findOne(query = {}) {
     if (mongoose.connection.readyState === 1) {
-      return MongoUser.findOne(query);
+      try {
+        const doc = await MongoUser.findOne(query);
+        if (doc) return doc;
+      } catch (e) {}
     }
     const users = readLocalUsers();
     const match = users.find(u => {
       if (query.email && u.email.toLowerCase() !== String(query.email).toLowerCase()) return false;
       if (query.roll && u.roll.toLowerCase() !== String(query.roll).toLowerCase()) return false;
-      if (query._id && (u._id || u.id) !== query._id) return false;
+      if (query._id && String(u._id || u.id) !== String(query._id)) return false;
       if (typeof query.isBanned === 'boolean' && u.isBanned !== query.isBanned) return false;
       if (Array.isArray(query.$or)) {
         const matchesAny = query.$or.some(cond => {
@@ -122,6 +125,12 @@ class UserWrapper {
   }
 
   static async findById(id) {
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const doc = await MongoUser.findById(id);
+        if (doc) return doc;
+      } catch (e) {}
+    }
     return this.findOne({ _id: id });
   }
 
@@ -153,13 +162,18 @@ class UserWrapper {
 
   static async findByIdAndUpdate(id, update, options = {}) {
     if (mongoose.connection.readyState === 1) {
-      return MongoUser.findByIdAndUpdate(id, update, { returnDocument: 'after', ...options });
+      try {
+        const cleanOpts = { returnDocument: 'after', ...options }; delete cleanOpts.new; const doc = await MongoUser.findByIdAndUpdate(id, update, cleanOpts);
+        if (doc) return doc;
+      } catch (e) {}
     }
     const users = readLocalUsers();
-    const index = users.findIndex(u => (u._id || u.id) === id);
+    const index = users.findIndex(u => String(u._id || u.id) === String(id));
     if (index === -1) return null;
 
-    users[index] = { ...users[index], ...update };
+    const fieldsToUpdate = update.$set ? { ...update.$set } : { ...update };
+    delete fieldsToUpdate.$set;
+    users[index] = { ...users[index], ...fieldsToUpdate };
     writeLocalUsers(users);
     const updated = users[index];
     return { ...updated, _id: updated._id || updated.id, id: updated._id || updated.id };

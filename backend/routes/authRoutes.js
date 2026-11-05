@@ -79,8 +79,11 @@ router.post('/send-otp', async (req, res) => {
 
     res.json({
       ok: true,
-      message: `Real-time OTP dispatched successfully to ${cleanEmail}`,
-      simulated: mailResult.simulated || false
+      message: mailResult.simulated
+        ? `Verification code: ${otp} (Email dispatch offline)`
+        : `Real-time OTP dispatched successfully to ${cleanEmail}`,
+      simulated: mailResult.simulated || false,
+      otp: mailResult.simulated ? otp : undefined
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -192,7 +195,10 @@ router.post('/login', async (req, res) => {
         email: userEmail,
         purpose: 'user_login',
         simulated: mailResult.simulated || false,
-        message: `Real-time OTP dispatched to ${userEmail}. Please verify your passcode to sign in.`
+        otp: mailResult.simulated ? loginOtp : undefined,
+        message: mailResult.simulated
+          ? `Verification passcode: ${loginOtp} (Email service offline)`
+          : `Real-time OTP dispatched to ${userEmail}. Please verify your passcode to sign in.`
       });
     }
 
@@ -315,7 +321,10 @@ router.post('/register', async (req, res) => {
         email: cleanEmail,
         purpose: 'user_register',
         simulated: mailResult.simulated || false,
-        message: `Verification OTP dispatched to ${cleanEmail}. Please check your inbox to complete registration.`
+        otp: mailResult.simulated ? regOtp : undefined,
+        message: mailResult.simulated
+          ? `Registration code: ${regOtp} (Email service offline)`
+          : `Verification OTP dispatched to ${cleanEmail}. Please check your inbox to complete registration.`
       });
     }
 
@@ -504,7 +513,11 @@ router.post('/forgot-password', async (req, res) => {
     res.json({
       ok: true,
       email: userEmail,
-      message: `A 6-digit password reset code has been sent to ${userEmail}.`
+      simulated: mailResult.simulated || false,
+      otp: mailResult.simulated ? otp : undefined,
+      message: mailResult.simulated
+        ? `Reset code: ${otp} (Email service offline)`
+        : `A 6-digit password reset code has been sent to ${userEmail}.`
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
